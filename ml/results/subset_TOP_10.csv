@@ -1,0 +1,10 @@
+sp500_return
+vix_return
+usd_return
+oil_volatility_7d
+gdelt_tone_30d
+gdelt_tone_lag1
+vix_lag1
+inventory_zscore
+fed_funds_rate_lag
+month

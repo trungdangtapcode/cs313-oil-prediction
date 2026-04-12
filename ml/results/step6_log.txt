@@ -1,0 +1,249 @@
+﻿
+==========================================================================================
+ STEP 6: SMART FEATURE SELECTION
+==========================================================================================
+  Features: 81 | Train: 2033 | Test: 840
+
+==========================================================================================
+ A) CORRELATION CLUSTERING
+==========================================================================================
+
+ Threshold      N_clusters   Max_size   Singletons
+ --------------------------------------------------
+ 0.1                    62          7           51
+ 0.2                    51          8           38
+ 0.3                    40          9           25
+ 0.4                    34         10           21
+ 0.5                    29         10           17
+
+ Chß╗ìn threshold = 0.3 ΓåÆ 40 clusters
+
+ Clusters c├│ > 1 feature (─æa cß╗Öng tuyß║┐n):
+   Cluster 4 (2 features, max|rho|=1.000):
+     - momentum_5
+     - ret_mean_5
+   Cluster 5 (6 features, max|rho|=0.942):
+     - price_vs_ma20
+     - rsi_14
+     - macd_hist
+     - macd_cross
+     - bb_position
+     - momentum_10
+   Cluster 7 (5 features, max|rho|=0.996):
+     - price_vs_ma50
+     - macd
+     - macd_signal
+     - momentum_20
+     - ret_mean_20
+   Cluster 14 (2 features, max|rho|=0.737):
+     - conflict_event_count
+     - conflict_intensity_7d
+   Cluster 18 (2 features, max|rho|=0.893):
+     - oil_volatility_7d
+     - ret_std_5
+   Cluster 21 (2 features, max|rho|=0.975):
+     - vix_close
+     - vix_lag1
+   Cluster 22 (2 features, max|rho|=0.773):
+     - fatalities
+     - fatalities_7d
+   Cluster 23 (5 features, max|rho|=1.000):
+     - gdelt_tone
+     - gdelt_tone_7d
+     - stress_tone
+     - geopolitical_stress_index
+     - gdelt_tone_lag1
+   Cluster 24 (3 features, max|rho|=1.000):
+     - gdelt_goldstein
+     - gdelt_goldstein_7d
+     - stress_goldstein
+   Cluster 26 (3 features, max|rho|=0.840):
+     - fed_funds_rate_lag
+     - unemployment_lag
+     - fed_rate_regime
+   Cluster 27 (2 features, max|rho|=0.725):
+     - yield_spread
+     - crude_production_weekly
+   Cluster 28 (9 features, max|rho|=0.997):
+     - wti_fred
+     - crude_inventory_weekly
+     - cpi_yoy
+     - ma_5
+     - ma_10
+     - ma_20
+     - ma_50
+     - bb_upper
+     - bb_lower
+   Cluster 30 (9 features, max|rho|=1.000):
+     - sp500_close
+     - cpi_lag
+     - net_imports_weekly
+     - gdelt_volume
+     - gdelt_events
+     - gdelt_volume_7d
+     - gdelt_volume_log
+     - stress_volume
+     - gdelt_volume_lag1
+   Cluster 35 (2 features, max|rho|=0.776):
+     - sp500_return_lag1
+     - vix_return_lag1
+   Cluster 37 (2 features, max|rho|=0.776):
+     - sp500_return
+     - vix_return
+
+==========================================================================================
+ B) PERMUTATION IMPORTANCE
+==========================================================================================
+  Computing permutation importance (5 repeats)...
+  Done (5.5s)
+
+ Top 20 Permutation Importance:
+ #    Feature                         Perm_mean   Perm_std
+ ----------------------------------------------------------
+ 1    gdelt_tone_30d                    0.00619    0.00873
+ 2    wti_fred                          0.00357    0.00686
+ 3    sp500_close                       0.00333    0.00654
+ 4    sp500_return                      0.00310    0.01312
+ 5    month                             0.00262    0.00190
+ 6    macd_hist                         0.00262    0.00415
+ 7    inventory_change_pct              0.00238    0.00075
+ 8    fatalities                        0.00190    0.00619
+ 9    yield_spread                      0.00143    0.00295
+ 10   usd_return                        0.00048    0.00624
+ 11   ret_mean_5                        0.00048    0.00267
+ 12   macd_signal                       0.00024    0.00205
+ 13   ma_20_50_cross                    0.00000    0.00000
+ 14   gdelt_volume_log                  0.00000    0.00000
+ 15   media_attention_spike             0.00000    0.00000
+ 16   fed_funds_rate_lag                0.00000    0.00000
+ 17   cpi_lag                           0.00000    0.00000
+ 18   macd_cross                        0.00000    0.00000
+ 19   gdelt_data_imputed                0.00000    0.00000
+ 20   stress_volume                     0.00000    0.00000
+
+==========================================================================================
+ C) COMBINE: BEST FEATURE PER CLUSTER
+==========================================================================================
+
+  Cluster Selected                           Perm Dropped                                           
+ ----------------------------------------------------------------------------------------------------
+        1 gdelt_tone_spike                0.00000 -                                                 
+        2 media_attention_spike           0.00000 -                                                 
+        3 gdelt_vol_momentum             -0.00286 -                                                 
+        4 ret_mean_5                      0.00048 momentum_5                                        
+        5 macd_hist                       0.00262 macd_cross, rsi_14, momentum_10, price_vs_ma20, bb_position
+        6 ma_5_10_cross                   0.00000 -                                                 
+        7 macd_signal                     0.00024 macd, price_vs_ma50, momentum_20, ret_mean_20     
+        8 ma_10_20_cross                  0.00000 -                                                 
+        9 ma_20_50_cross                  0.00000 -                                                 
+       10 oil_return_lag5                -0.00048 -                                                 
+       11 oil_return_lag3                 0.00000 -                                                 
+       12 oil_return_lag2                -0.00262 -                                                 
+       13 month                           0.00262 -                                                 
+       14 conflict_event_count           -0.00429 conflict_intensity_7d                             
+       15 day_of_week                    -0.00548 -                                                 
+       16 usd_close                      -0.00667 -                                                 
+       17 recession_signal                0.00000 -                                                 
+       18 oil_volatility_7d              -0.00524 ret_std_5                                         
+       19 ret_std_20                     -0.00262 -                                                 
+       20 bb_width                       -0.00357 -                                                 
+       21 vix_lag1                       -0.00024 vix_close                                         
+       22 fatalities                      0.00190 fatalities_7d                                     
+       23 stress_tone                    -0.00024 gdelt_tone_lag1, geopolitical_stress_index, gdelt_tone, gdelt_tone_7d
+       24 stress_goldstein               -0.00048 gdelt_goldstein_7d, gdelt_goldstein               
+       25 gdelt_tone_30d                  0.00619 -                                                 
+       26 fed_funds_rate_lag              0.00000 fed_rate_regime, unemployment_lag                 
+       27 yield_spread                    0.00143 crude_production_weekly                           
+       28 wti_fred                        0.00357 crude_inventory_weekly, bb_lower, cpi_yoy, ma_20, ma_5, ma_50, bb_upper, ma_10
+       29 inventory_zscore               -0.00214 -                                                 
+       30 sp500_close                     0.00333 cpi_lag, gdelt_volume_log, stress_volume, gdelt_volume, gdelt_volume_lag1, gdelt_events, net_imports_weekly, gdelt_volume_7d
+       31 real_rate                      -0.00167 -                                                 
+       32 inventory_change_pct            0.00238 -                                                 
+       33 production_change_pct          -0.00881 -                                                 
+       34 net_imports_change_pct         -0.01048 -                                                 
+       35 vix_return_lag1                -0.01000 sp500_return_lag1                                 
+       36 oil_return_lag1                -0.00548 -                                                 
+       37 sp500_return                    0.00310 vix_return                                        
+       38 usd_return                      0.00048 -                                                 
+       39 gdelt_data_imputed              0.00000 -                                                 
+       40 fed_rate_change                -0.00119 -                                                 
+
+ Selected: 40 features (tß╗½ 81 ΓåÆ giß║úm 41)
+ Sau khi bß╗Å perm <= 0: 12 features
+
+==========================================================================================
+ D) COMPARE FEATURE SETS
+==========================================================================================
+
+ Set                          N   LGBM_Acc    XGB_Acc    GBM_Acc
+ ----------------------------------------------------------------
+ ALL_81                      81     0.5583     0.5524     0.5679
+ CLUSTER_40                  40     0.5643     0.5655     0.5369
+ CLUSTER_POS_12              12     0.5393     0.5250     0.5417
+ PERM_TOP_10                 10     0.5536     0.5405     0.5452
+ PERM_TOP_15                 15     0.5571     0.5440     0.5417
+ PERM_TOP_20                 20     0.5464     0.5452     0.5345
+ PERM_TOP_25                 25     0.5548     0.5500     0.5310
+
+==========================================================================================
+ E) FINAL TRAIN ON ALL_81 (81 features)
+==========================================================================================
+
+--- XGB ---
+python.exe : joblib.externals.loky.process_executor._RemoteTraceback: 
+At line:1 char:32
++ ... NG='utf-8'; & D:\Anaconda\Anaconda\envs\trocr\python.exe -u "D:\lab\s ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (joblib.external...moteTraceback: :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+"""
+Traceback (most recent call last):
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\joblib\externals\loky\process_executor.py", line 426, in 
+_process_worker
+    call_item = call_queue.get(block=True, timeout=timeout)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\multiprocessing\queues.py", line 122, in get
+    return _ForkingPickler.loads(res)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+_pickle.UnpicklingError: invalid load key, '\x16'.
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\lab\stuff4\CS313\OilPricePrediction-main\ml\step6_smart_selection.py", line 260, in <module>
+    main()
+  File "D:\lab\stuff4\CS313\OilPricePrediction-main\ml\step6_smart_selection.py", line 216, in main
+    gs.fit(X_train[best_feats], y_train)
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\sklearn\base.py", line 1336, in wrapper
+    return fit_method(estimator, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\sklearn\model_selection\_search.py", line 1053, in fit
+    self._run_search(evaluate_candidates)
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\sklearn\model_selection\_search.py", line 2002, in 
+_run_search
+    evaluate_candidates(
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\sklearn\model_selection\_search.py", line 999, in 
+evaluate_candidates
+    out = parallel(
+          ^^^^^^^^^
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\sklearn\utils\parallel.py", line 91, in __call__
+    return super().__call__(iterable_with_config_and_warning_filters)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\joblib\parallel.py", line 2007, in __call__
+    return output if self.return_generator else list(output)
+                                                ^^^^^^^^^^^^
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\joblib\parallel.py", line 1650, in _get_outputs
+    yield from self._retrieve()
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\joblib\parallel.py", line 1754, in _retrieve
+    self._raise_error_fast()
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\joblib\parallel.py", line 1789, in _raise_error_fast
+    error_job.get_result(self.timeout)
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\joblib\parallel.py", line 745, in get_result
+    return self._return_or_raise()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Anaconda\Anaconda\envs\trocr\Lib\site-packages\joblib\parallel.py", line 763, in _return_or_raise
+    raise self._result
+joblib.externals.loky.process_executor.BrokenProcessPool: A task has failed to un-serialize. Please ensure that the 
+arguments of the function are all picklable.

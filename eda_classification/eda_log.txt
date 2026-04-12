@@ -1,0 +1,397 @@
+﻿
+==========================================================================================
+ LOAD
+==========================================================================================
+  Shape: (2923, 55) | Train: 2083 | Test: 840
+  Features: 52
+
+==========================================================================================
+ 1. CLASS DISTRIBUTION
+==========================================================================================
+    Full: UP=1488 (50.9%)  DOWN=1435 (49.1%)
+   Train: UP=1070 (51.4%)  DOWN=1013 (48.6%)
+    Test: UP=418 (49.8%)  DOWN=422 (50.2%)
+    -> 01_class_distribution.png
+    -> 02_class_by_year.png
+
+==========================================================================================
+ 2. FEATURE DISTRIBUTIONS BY CLASS
+==========================================================================================
+    -> 03_dist_by_class_all.png
+  Plotted: 52 features
+
+  KS Test (UP vs DOWN distributions):
+  Feature                               KS_stat         KS_p  Significant
+  ----------------------------------------------------------------------
+  sp500_return                           0.2380     2.33e-26          YES
+  vix_return                             0.2078     3.78e-20          YES
+  usd_return                             0.1308     3.12e-08          YES
+  gdelt_tone_lag1                        0.0866     7.54e-04          YES
+  inventory_change_pct                   0.0845     1.09e-03          YES
+  day_of_week                            0.0801     2.32e-03          YES
+  wti_fred                               0.0787     2.93e-03          YES
+  oil_close                              0.0765     4.23e-03          YES
+  net_imports_change_pct                 0.0757     4.76e-03          YES
+  oil_volatility_7d                      0.0753     5.13e-03          YES
+  net_imports_weekly                     0.0749     5.43e-03          YES
+  sp500_close                            0.0726     7.70e-03          YES
+  usd_close                              0.0712     9.61e-03          YES
+  inventory_zscore                       0.0680     1.52e-02          YES
+  geopolitical_stress_index              0.0673     1.69e-02          YES
+  conflict_intensity_7d                  0.0660     2.01e-02          YES
+  cpi_lag                                0.0649     2.34e-02          YES
+  gdelt_volume_log                       0.0648     2.38e-02          YES
+  gdelt_volume                           0.0648     2.38e-02          YES
+  stress_volume                          0.0648     2.38e-02          YES
+  gdelt_volume_7d                        0.0639     2.69e-02          YES
+  gdelt_tone_7d                          0.0635     2.85e-02          YES
+  fed_funds_rate_lag                     0.0631     2.97e-02          YES
+  gdelt_goldstein_7d                     0.0620     3.44e-02          YES
+  gdelt_goldstein                        0.0610     3.95e-02          YES
+  stress_goldstein                       0.0610     3.95e-02          YES
+  conflict_event_count                   0.0572     6.33e-02             
+  cpi_yoy                                0.0564     6.92e-02             
+  crude_production_weekly                0.0559     7.38e-02             
+  gdelt_events                           0.0557     7.49e-02             
+  gdelt_volume_lag1                      0.0535     9.73e-02             
+  gdelt_tone_30d                         0.0530     1.03e-01             
+  oil_return_lag1                        0.0514     1.22e-01             
+  production_change_pct                  0.0509     1.28e-01             
+  stress_tone                            0.0491     1.55e-01             
+  gdelt_tone                             0.0491     1.55e-01             
+  vix_close                              0.0463     2.05e-01             
+  oil_return_lag2                        0.0404     3.52e-01             
+  real_rate                              0.0391     3.90e-01             
+  unemployment_lag                       0.0370     4.60e-01             
+  fatalities                             0.0360     4.95e-01             
+  crude_inventory_weekly                 0.0359     4.97e-01             
+  month                                  0.0355     5.13e-01             
+  yield_spread                           0.0351     5.27e-01             
+  fatalities_7d                          0.0316     6.59e-01             
+  vix_lag1                               0.0251     8.86e-01             
+  fed_rate_regime                        0.0204     9.78e-01             
+  fed_rate_change                        0.0146     1.00e+00             
+  media_attention_spike                  0.0070     1.00e+00             
+  recession_signal                       0.0064     1.00e+00             
+  gdelt_tone_spike                       0.0012     1.00e+00             
+  gdelt_data_imputed                     0.0009     1.00e+00             
+
+  Features significantly different between UP/DOWN: 26/52
+
+==========================================================================================
+ 3. CLASS-WISE MEANS + COHEN'S D
+==========================================================================================
+  Feature                                Mean_UP  Mean_DOWN    Cohen_d
+  --------------------------------------------------------------------
+  vix_return                             -0.0145     0.0223    -0.4312
+  sp500_return                            0.0027    -0.0021     0.4235
+  usd_return                             -0.0004     0.0006    -0.2241
+  sp500_close                          3037.7806  2924.8477     0.1394
+  wti_fred                               59.4952    57.1847     0.1249
+  oil_close                              63.8595    61.6463     0.1183
+  usd_close                              96.4018    96.8997    -0.1147
+  inventory_change_pct                   -0.0009    -0.0003    -0.1143
+  fed_rate_change                        -0.0007     0.0044    -0.1141
+  vix_close                              18.3513    19.1823    -0.1057
+  day_of_week                             2.0738     1.9250     0.1053
+  conflict_intensity_7d                1335.7804  1279.7779     0.1015
+  gdelt_goldstein_7d                      0.2410     0.2028     0.1003
+  gdelt_volume_7d                     160606.1762 169069.1705    -0.0957
+  net_imports_weekly                   2133.6850  2378.1323    -0.0956
+  gdelt_tone_lag1                        -2.6251    -2.7035     0.0927
+  gdelt_events                        13823.6636 14373.3712    -0.0924
+  oil_return_lag1                        -0.0005     0.0017    -0.0827
+  fatalities                            201.9888   222.2083    -0.0805
+  geopolitical_stress_index               0.5620     0.5691    -0.0775
+  gdelt_tone_7d                          -2.6304    -2.6886     0.0736
+  inventory_zscore                       -0.2529    -0.1511    -0.0693
+  gdelt_tone                             -2.6379    -2.6952     0.0683
+  stress_tone                             0.6805     0.6878    -0.0683
+  cpi_lag                               256.2281   255.1049     0.0668
+  gdelt_goldstein                         0.2376     0.2084     0.0622
+  stress_goldstein                        0.3864     0.3944    -0.0622
+  real_rate                              -1.8099    -1.6642    -0.0596
+  crude_production_weekly             10670.1477 10592.7601     0.0581
+  gdelt_volume_lag1                      11.7978    11.8358    -0.0580
+  unemployment_lag                        4.9956     4.8949     0.0533
+  gdelt_volume                        161976.9234 167413.7887    -0.0530
+  oil_return_lag2                        -0.0001     0.0012    -0.0506
+  cpi_yoy                                 2.7117     2.5910     0.0494
+  gdelt_volume_log                       11.8001    11.8322    -0.0487
+  stress_volume                           0.5519     0.5583    -0.0487
+  gdelt_tone_30d                         -2.6142    -2.6497     0.0446
+  gdelt_data_imputed                      0.0009     0.0000     0.0432
+  conflict_event_count                  184.1140   190.2034    -0.0361
+  media_attention_spike                   0.0682     0.0612     0.0285
+  fed_funds_rate_lag                      0.9018     0.9269    -0.0275
+  month                                   6.4907     6.5834    -0.0269
+  oil_volatility_7d                       0.0198     0.0201    -0.0266
+  recession_signal                        0.0607     0.0671    -0.0261
+  fed_rate_regime                         1.4206     1.3899     0.0207
+  production_change_pct                   0.0007     0.0010    -0.0132
+  vix_lag1                               18.7267    18.7853    -0.0075
+  gdelt_tone_spike                        0.0383     0.0395    -0.0060
+  crude_inventory_weekly              1097921.7196 1097543.1431     0.0044
+  net_imports_change_pct                  0.0274     0.0190     0.0014
+  fatalities_7d                        1482.5271  1482.1007     0.0004
+  yield_spread                            0.6970     0.6971    -0.0001
+
+  |d| > 0.2 (small effect): 3
+  |d| > 0.5 (medium effect): 0
+  |d| > 0.8 (large effect): 0
+    -> 04_cohens_d.png
+
+==========================================================================================
+ 4. POINT-BISERIAL CORRELATION
+==========================================================================================
+  Feature                                   r_pb      p-value
+  ------------------------------------------------------------
+  vix_return                             -0.2118     1.50e-22
+  sp500_return                            0.2076     1.02e-21
+  usd_return                             -0.1113     3.55e-07
+  sp500_close                             0.0695     1.50e-03
+  wti_fred                                0.0623     4.43e-03
+  oil_close                               0.0590     7.03e-03
+  usd_close                              -0.0573     8.94e-03
+  fed_rate_change                        -0.0571     9.18e-03
+  inventory_change_pct                   -0.0570     9.22e-03
+  vix_close                              -0.0529     1.58e-02
+  day_of_week                             0.0526     1.63e-02
+  conflict_intensity_7d                   0.0508     2.05e-02
+  gdelt_goldstein_7d                      0.0501     2.21e-02
+  gdelt_volume_7d                        -0.0478     2.91e-02
+  net_imports_weekly                     -0.0478     2.92e-02
+  gdelt_tone_lag1                         0.0463     3.46e-02
+  gdelt_events                           -0.0462     3.51e-02
+  oil_return_lag1                        -0.0413     5.98e-02
+  fatalities                             -0.0403     6.61e-02
+  geopolitical_stress_index              -0.0387     7.72e-02
+  gdelt_tone_7d                           0.0368     9.34e-02
+  inventory_zscore                       -0.0346     1.14e-01
+  stress_tone                            -0.0341     1.20e-01
+  gdelt_tone                              0.0341     1.20e-01
+  cpi_lag                                 0.0334     1.28e-01
+  gdelt_goldstein                         0.0311     1.56e-01
+  stress_goldstein                       -0.0311     1.56e-01
+  real_rate                              -0.0298     1.74e-01
+  crude_production_weekly                 0.0291     1.85e-01
+  gdelt_volume_lag1                      -0.0290     1.86e-01
+  unemployment_lag                        0.0266     2.25e-01
+  gdelt_volume                           -0.0265     2.27e-01
+  oil_return_lag2                        -0.0253     2.49e-01
+  cpi_yoy                                 0.0247     2.59e-01
+  stress_volume                          -0.0244     2.66e-01
+  gdelt_volume_log                       -0.0244     2.66e-01
+  gdelt_tone_30d                          0.0223     3.08e-01
+  gdelt_data_imputed                      0.0213     3.31e-01
+  conflict_event_count                   -0.0181     4.10e-01
+  media_attention_spike                   0.0143     5.16e-01
+  fed_funds_rate_lag                     -0.0137     5.31e-01
+  month                                  -0.0135     5.39e-01
+  oil_volatility_7d                      -0.0133     5.44e-01
+  recession_signal                       -0.0130     5.52e-01
+  fed_rate_regime                         0.0104     6.37e-01
+  production_change_pct                  -0.0066     7.63e-01
+  vix_lag1                               -0.0037     8.65e-01
+  gdelt_tone_spike                       -0.0030     8.90e-01
+  crude_inventory_weekly                  0.0022     9.21e-01
+  net_imports_change_pct                  0.0007     9.75e-01
+  fatalities_7d                           0.0002     9.93e-01
+  yield_spread                           -0.0001     9.97e-01
+    -> 05_pointbiserial.png
+
+==========================================================================================
+ 5. MUTUAL INFORMATION
+==========================================================================================
+  #    Feature                                   MI
+  --------------------------------------------------
+  1    sp500_return                          0.0448
+  2    vix_return                            0.0428
+  3    usd_return                            0.0271
+  4    sp500_close                           0.0171
+  5    gdelt_tone_30d                        0.0157
+  6    conflict_event_count                  0.0151
+  7    gdelt_tone_lag1                       0.0144
+  8    inventory_zscore                      0.0138
+  9    real_rate                             0.0134
+  10   vix_lag1                              0.0108
+  11   cpi_yoy                               0.0105
+  12   oil_volatility_7d                     0.0088
+  13   gdelt_volume_7d                       0.0082
+  14   cpi_lag                               0.0066
+  15   day_of_week                           0.0064
+  16   gdelt_goldstein                       0.0053
+  17   stress_goldstein                      0.0050
+  18   yield_spread                          0.0042
+  19   month                                 0.0033
+  20   gdelt_goldstein_7d                    0.0032
+  21   unemployment_lag                      0.0031
+  22   fatalities_7d                         0.0022
+  23   fed_funds_rate_lag                    0.0015
+  24   oil_return_lag2                       0.0011
+  25   geopolitical_stress_index             0.0010
+  26   gdelt_volume_log                      0.0006
+  27   gdelt_volume                          0.0006
+  28   stress_volume                         0.0003
+  29   conflict_intensity_7d                 0.0000
+  30   stress_tone                           0.0000
+  31   gdelt_tone_spike                      0.0000
+  32   oil_return_lag1                       0.0000
+  33   wti_fred                              0.0000
+  34   gdelt_volume_lag1                     0.0000
+  35   vix_close                             0.0000
+  36   media_attention_spike                 0.0000
+  37   production_change_pct                 0.0000
+  38   net_imports_change_pct                0.0000
+  39   gdelt_tone_7d                         0.0000
+  40   crude_inventory_weekly                0.0000
+  41   crude_production_weekly               0.0000
+  42   fed_rate_regime                       0.0000
+  43   net_imports_weekly                    0.0000
+  44   recession_signal                      0.0000
+  45   fed_rate_change                       0.0000
+  46   inventory_change_pct                  0.0000
+  47   gdelt_tone                            0.0000
+  48   usd_close                             0.0000
+  49   fatalities                            0.0000
+  50   gdelt_events                          0.0000
+  51   gdelt_data_imputed                    0.0000
+  52   oil_close                             0.0000
+    -> 06_mutual_info.png
+
+==========================================================================================
+ 6. COMBINED FEATURE RANKING
+==========================================================================================
+  #    Feature                                |rpb|       MI       KS    Score
+  ------------------------------------------------------------------------
+  1    sp500_return                          0.2076   0.0448   0.2380   0.9935
+  2    vix_return                            0.2118   0.0428   0.2078   0.9425
+  3    usd_return                            0.1113   0.0271   0.1308   0.5602
+  4    sp500_close                           0.0695   0.0171   0.0726   0.3382
+  5    gdelt_tone_lag1                       0.0463   0.0144   0.0866   0.3011
+  6    inventory_zscore                      0.0346   0.0138   0.0680   0.2525
+  7    day_of_week                           0.0526   0.0064   0.0801   0.2425
+  8    gdelt_volume_7d                       0.0478   0.0082   0.0639   0.2260
+  9    gdelt_tone_30d                        0.0223   0.0157   0.0530   0.2259
+  10   conflict_event_count                  0.0181   0.0151   0.0572   0.2210
+  11   wti_fred                              0.0623   0.0000   0.0787   0.2084
+  12   inventory_change_pct                  0.0570   0.0000   0.0845   0.2081
+  13   real_rate                             0.0298   0.0134   0.0391   0.2014
+  14   oil_close                             0.0590   0.0000   0.0765   0.2000
+  15   cpi_yoy                               0.0247   0.0105   0.0564   0.1962
+  16   cpi_lag                               0.0334   0.0066   0.0649   0.1926
+  17   oil_volatility_7d                     0.0133   0.0088   0.0753   0.1916
+  18   usd_close                             0.0573   0.0000   0.0712   0.1898
+  19   gdelt_goldstein_7d                    0.0501   0.0032   0.0620   0.1897
+  20   net_imports_weekly                    0.0478   0.0000   0.0749   0.1801
+  21   gdelt_goldstein                       0.0311   0.0053   0.0610   0.1738
+  22   conflict_intensity_7d                 0.0508   0.0000   0.0660   0.1724
+  23   stress_goldstein                      0.0311   0.0050   0.0610   0.1714
+  24   geopolitical_stress_index             0.0387   0.0010   0.0673   0.1624
+  25   gdelt_events                          0.0462   0.0000   0.0557   0.1507
+  26   vix_close                             0.0529   0.0000   0.0463   0.1481
+  27   gdelt_tone_7d                         0.0368   0.0000   0.0635   0.1468
+  28   oil_return_lag1                       0.0413   0.0000   0.0514   0.1369
+  29   gdelt_volume                          0.0265   0.0006   0.0648   0.1366
+  30   gdelt_volume_log                      0.0244   0.0006   0.0648   0.1338
+  31   stress_volume                         0.0244   0.0003   0.0648   0.1310
+  32   crude_production_weekly               0.0291   0.0000   0.0559   0.1240
+  33   stress_tone                           0.0341   0.0000   0.0491   0.1225
+  34   gdelt_tone                            0.0341   0.0000   0.0491   0.1225
+  35   fed_funds_rate_lag                    0.0137   0.0015   0.0631   0.1216
+  36   vix_lag1                              0.0037   0.0108   0.0251   0.1211
+  37   gdelt_volume_lag1                     0.0290   0.0000   0.0535   0.1205
+  38   unemployment_lag                      0.0266   0.0031   0.0370   0.1168
+  39   fatalities                            0.0403   0.0000   0.0360   0.1138
+  40   fed_rate_change                       0.0571   0.0000   0.0146   0.1102
+  41   net_imports_change_pct                0.0007   0.0000   0.0757   0.1071
+  42   oil_return_lag2                       0.0253   0.0011   0.0404   0.1047
+  43   month                                 0.0135   0.0033   0.0355   0.0952
+  44   production_change_pct                 0.0066   0.0000   0.0509   0.0817
+  45   yield_spread                          0.0001   0.0042   0.0351   0.0805
+  46   fatalities_7d                         0.0002   0.0022   0.0316   0.0606
+  47   crude_inventory_weekly                0.0022   0.0000   0.0359   0.0538
+  48   fed_rate_regime                       0.0104   0.0000   0.0204   0.0448
+  49   gdelt_data_imputed                    0.0213   0.0000   0.0009   0.0349
+  50   media_attention_spike                 0.0143   0.0000   0.0070   0.0323
+  51   recession_signal                      0.0130   0.0000   0.0064   0.0295
+  52   gdelt_tone_spike                      0.0030   0.0000   0.0012   0.0064
+
+==========================================================================================
+ 7. BOXPLOT BY CLASS ΓÇö TOP 20
+==========================================================================================
+    -> 07_boxplot_top20.png
+  Plotted: 20 features
+
+==========================================================================================
+ 8. CLASS PROPORTION OVER TIME
+==========================================================================================
+    -> 08_class_over_time.png
+
+==========================================================================================
+ 9. VIOLIN PLOT ΓÇö TOP 12
+==========================================================================================
+    -> 09_violin_top12.png
+
+==========================================================================================
+ 10. CORRELATION HEATMAP BY CLASS
+==========================================================================================
+    -> 10_corr_by_class.png
+
+==========================================================================================
+ 11. SCATTER ΓÇö TOP FEATURE PAIRS
+==========================================================================================
+    -> 11_scatter_pairs.png
+
+==========================================================================================
+ 12. CLASS SHIFT: TRAIN vs TEST
+==========================================================================================
+
+  Train: UP=0.514 | Test: UP=0.498
+  Target shift KS: stat=0.0161 p=0.9971
+
+  Feature shift per class:
+  Feature                                UP_KS       UP_p  DOWN_KS     DOWN_p
+  --------------------------------------------------------------------------
+  sp500_return                          0.0972   6.24e-03   0.1362   2.77e-05
+  vix_return                            0.1213   2.58e-04   0.1255   1.47e-04
+  usd_return                            0.0886   1.66e-02   0.0783   4.84e-02
+  sp500_close                           0.7894  6.30e-189   0.8324  5.60e-213
+  gdelt_tone_lag1                       0.3907   1.53e-41   0.3865   2.94e-40
+  inventory_zscore                      0.2470   1.33e-16   0.2288   3.55e-14
+  day_of_week                           0.0246   9.91e-01   0.0246   9.91e-01
+  gdelt_volume_7d                       0.1821   3.44e-09   0.2128   2.60e-12
+  gdelt_tone_30d                        0.4710   5.31e-61   0.4712   1.80e-60
+  conflict_event_count                  0.3251   1.19e-28   0.3540   1.02e-33
+  wti_fred                              0.5558   2.48e-86   0.5830   9.43e-95
+  inventory_change_pct                  0.1823   3.28e-09   0.1274   1.12e-04
+  real_rate                             0.8572  6.06e-232   0.8665  6.88e-236
+  oil_close                             0.5002   3.92e-69   0.5186   6.34e-74
+  cpi_yoy                               0.6002  8.92e-102   0.6399  6.29e-116
+
+==========================================================================================
+ SUMMARY
+==========================================================================================
+
+  TARGET: direction (1=UP, 0=DOWN)
+  CLASS BALANCE:
+    Train: UP=51.4% DOWN=48.6% (near balanced)
+    Test:  UP=49.8% DOWN=50.2%
+
+  FEATURE SEPARABILITY:
+    KS test (UP vs DOWN differ): 26/52 features significant (p<0.05)
+    Point-biserial significant:  17/52 features
+    Cohen's d > 0.2:             3/52 features
+
+  TOP 5 FEATURES (combined rpb + MI + KS):
+    1. sp500_return                   score=0.9935
+    2. vix_return                     score=0.9425
+    3. usd_return                     score=0.5602
+    4. sp500_close                    score=0.3382
+    5. gdelt_tone_lag1                score=0.3011
+
+  PLOTS: 12 files in eda_classification/
+
+==========================================================================================
+ DONE
+==========================================================================================
