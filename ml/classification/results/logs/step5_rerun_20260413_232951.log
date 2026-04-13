@@ -197,3 +197,36 @@
   ValAcc=0.5385 ValF1m=0.5304 ValAUC=0.5987 (CV=0.5241, 168.9s)
 
 --- GBM ---
+  Best: {'n_estimators': 300, 'min_samples_leaf': 5, 'max_depth': 5, 'learning_rate': 0.01}
+  ValAcc=0.5500 ValF1m=0.5417 ValAUC=0.5719 (CV=0.5220, 1188.0s)
+
+--- LGBM ---
+  Best: {'num_leaves': 15, 'n_estimators': 300, 'max_depth': 3, 'learning_rate': 0.01}
+  ValAcc=0.5154 ValF1m=0.4775 ValAUC=0.5359 (CV=0.5241, 41.6s)
+
+==========================================================================================
+ SUMMARY
+==========================================================================================
+Model  Val_Accuracy  Val_F1_macro  Val_AUC   CV_Acc  Time_s  Final_Test_Accuracy  Final_Test_F1_macro  Final_Test_AUC
+  GBM      0.550000      0.541695 0.571911 0.522034  1188.0             0.542857             0.539084        0.550245
+  XGB      0.538462      0.530432 0.598662 0.524068   168.9                  NaN                  NaN             NaN
+ LGBM      0.515385      0.477512 0.535926 0.524068    41.6                  NaN                  NaN             NaN
+
+ Pipeline:
+   81 features
+   -> Correlation clustering (threshold=0.3, |rho|>0.7 grouped)
+   -> 43 clusters
+   -> Permutation importance keeps 1 best feature per cluster
+   -> ALL_82: 82 features
+   -> GBM: ValAcc=0.5500
+   -> Holdout test: Acc=0.5429 F1m=0.5391 AUC=0.5502
+
+ Comparison:
+   Baseline (42 features, no technicals):   Acc=0.5274
+   Step4 (81 features, no selection):        Acc=0.5530
+   Step5 (naive MI+Spearman selection):      Acc=0.5619
+   Step5 (cluster+perm selection, val):       Acc=0.5500
+
+==========================================================================================
+ DONE
+==========================================================================================

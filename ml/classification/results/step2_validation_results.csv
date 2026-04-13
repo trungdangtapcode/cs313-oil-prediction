@@ -1,0 +1,7 @@
+Model,Accuracy,F1m,AUC,CV_Acc,Time_s,Use_Scaled,Params
+Voting,0.5538461538461539,0.5521501544309813,0.5655184659090909,,1.8,False,predefined
+GBM_v2,0.5576923076923077,0.5485497727650195,0.5687736742424242,0.524092409240924,634.2,False,"{'subsample': 1.0, 'n_estimators': 200, 'min_samples_leaf': 10, 'max_depth': 3, 'learning_rate': 0.01}"
+LGBM_v2,0.5423076923076923,0.5422467488275066,0.5742779356060606,0.532013201320132,29.5,False,"{'num_leaves': 15, 'n_estimators': 200, 'min_child_samples': 20, 'max_depth': 3, 'learning_rate': 0.03}"
+XGB_v2,0.5269230769230769,0.48144184462713435,0.5719105113636364,0.5214521452145215,100.5,False,"{'subsample': 0.8, 'reg_alpha': 0, 'n_estimators': 200, 'max_depth': 3, 'learning_rate': 0.01}"
+Stacking,0.5192307692307693,0.3746993746993747,0.595999053030303,,6.3,False,predefined
+SVM_RBF_v2,0.5076923076923077,0.3565849508932024,0.537405303030303,0.504950495049505,4.0,True,"{'gamma': 0.01, 'C': 1.0}"

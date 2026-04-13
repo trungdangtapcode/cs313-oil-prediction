@@ -1,0 +1,2 @@
+Model,Selected_On,Validation_Accuracy,Validation_F1m,Validation_AUC,Holdout_Accuracy,Holdout_F1m,Holdout_AUC,Params
+Voting,validation,0.5538461538461539,0.5521501544309813,0.5655184659090909,0.5214285714285715,0.49143352851875954,0.5343771967618314,predefined
