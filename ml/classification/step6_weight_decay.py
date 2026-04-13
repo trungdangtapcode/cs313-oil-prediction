@@ -8,7 +8,7 @@ regimes may drift over time.
 Goal of this step:
   - Compare uniform training against recency-weighted training
   - Evaluate several weighting schemes such as exponential, linear, and step decay
-  - Check whether reweighting helps the best subset from earlier steps
+  - Select the best scheme on validation before touching the final holdout test
 
 Target used in this file:
   - Binary classification: oil_return_fwd1 > 0 -> UP=1, otherwise DOWN=0
@@ -24,18 +24,20 @@ Models trained in this file:
 
 Method used in this file:
   - Train the same model under multiple sample-weight schemes
-  - Compare best accuracy under uniform and decay-weighted training
+  - Pick the best scheme on validation for each model
+  - Refit the chosen configuration on train+validation and evaluate once on holdout test
 
 Outputs:
-  - Console comparison across all weight schemes
-  - results/step7_results.csv
-  - results/step7_weight_schemes.png
-  - results/step7_comparison.png
+  - Console validation comparison across all weight schemes
+  - results/step6_validation_results.csv
+  - results/step6_results.csv
+  - results/step6_weight_schemes.png
+  - results/step6_comparison.png
 
 Usage:
   python ml/classification/step6_weight_decay.py
 """
-import os, sys, time
+import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import numpy as np, pandas as pd
@@ -43,73 +45,66 @@ import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
-from sklearn.model_selection import TimeSeriesSplit
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.feature_selection import mutual_info_classif
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, get_train_test_masks
+from config import RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, get_train_val_test_masks, set_global_seed
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
+OUT = os.path.join(os.path.dirname(__file__), 'results')
 
 
 def exponential_weights(n, half_life):
-    """
-    Create exponential decay weights.
-    half_life: number of samples needed for weight to decay to 50%.
-    The most recent sample has weight = 1.0.
-    """
     decay = np.log(2) / half_life
     t = np.arange(n)
-    w = np.exp(-decay * (n - 1 - t))  # t=0 oldest, t=n-1 most recent
-    return w
+    return np.exp(-decay * (n - 1 - t))
 
 
 def linear_weights(n, min_weight=0.1):
-    """Linearly increase weights from min_weight to 1.0."""
     return np.linspace(min_weight, 1.0, n)
 
 
 def step_weights(n, recent_ratio=0.5, recent_weight=2.0):
-    """Two-stage weights: old=1, recent=recent_weight."""
     w = np.ones(n)
     cutoff = int(n * (1 - recent_ratio))
     w[cutoff:] = recent_weight
     return w
 
 
-def train_eval(X_train, X_test, y_train, y_test, weights, model, name):
+def train_eval(X_train, X_eval, y_train, y_eval, weights, model):
     model.fit(X_train, y_train, sample_weight=weights)
-    pred = model.predict(X_test)
-    prob = model.predict_proba(X_test)[:, 1]
-    acc = accuracy_score(y_test, pred)
-    f1m = f1_score(y_test, pred, average='macro')
-    auc = roc_auc_score(y_test, prob)
-    return {'Model': name, 'Accuracy': acc, 'F1_macro': f1m, 'AUC': auc}
+    pred = model.predict(X_eval)
+    prob = model.predict_proba(X_eval)[:, 1]
+    return {
+        'Accuracy': accuracy_score(y_eval, pred),
+        'F1_macro': f1_score(y_eval, pred, average='macro'),
+        'AUC': roc_auc_score(y_eval, prob),
+    }
 
 
 def main():
+    seed = set_global_seed()
     print(f'\n{P}\n STEP 7: WEIGHT DECAY\n{P}')
+    print(f'  Seed: {seed}')
 
-    # Load + technicals
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     df = add_technical_features(df)
-
-    # Use TOP_50 features (best set from step5)
-    from sklearn.feature_selection import mutual_info_classif
 
     exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
     all_features = [c for c in df.columns if c not in exclude]
 
-    train_mask, test_mask, _ = get_train_test_masks(df)
+    train_mask, val_mask, test_mask, _ = get_train_val_test_masks(df)
 
     X_train_full = df.loc[train_mask, all_features]
+    X_val_full = df.loc[val_mask, all_features]
     X_test_full = df.loc[test_mask, all_features]
     y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
+    y_val = (df.loc[val_mask, TARGET] > 0).astype(int)
     y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
-    # Feature ranking (MI + Spearman) -> TOP_50
     mi = mutual_info_classif(X_train_full.fillna(0), y_train, random_state=RS, n_neighbors=5)
     sp = X_train_full.corrwith(df.loc[train_mask, TARGET], method='spearman').abs()
     rank = pd.DataFrame({'feature': all_features, 'MI': mi, 'abs_sp': sp.values})
@@ -121,30 +116,28 @@ def main():
     top50 = rank.head(50)['feature'].tolist()
 
     X_train = X_train_full[top50]
+    X_val = X_val_full[top50]
     X_test = X_test_full[top50]
     n_train = len(X_train)
 
     print(f'  Features: {len(top50)} (TOP_50)')
-    print(f'  Train: {n_train} | Test: {len(X_test)}')
+    print(f'  Train: {n_train} | Val: {len(X_val)} | Test: {len(X_test)}')
 
-    # ============================================================================
-    # A) VISUALIZE WEIGHT SCHEMES
-    # ============================================================================
     print(f'\n{P}\n A) WEIGHT SCHEMES\n{P}')
-
-    schemes = {
-        'uniform': np.ones(n_train),
-        'exp_hl100': exponential_weights(n_train, half_life=100),
-        'exp_hl250': exponential_weights(n_train, half_life=250),
-        'exp_hl500': exponential_weights(n_train, half_life=500),
-        'exp_hl1000': exponential_weights(n_train, half_life=1000),
-        'linear_01': linear_weights(n_train, min_weight=0.1),
-        'linear_03': linear_weights(n_train, min_weight=0.3),
-        'linear_05': linear_weights(n_train, min_weight=0.5),
-        'step_50pct_2x': step_weights(n_train, recent_ratio=0.5, recent_weight=2.0),
-        'step_50pct_3x': step_weights(n_train, recent_ratio=0.5, recent_weight=3.0),
-        'step_30pct_3x': step_weights(n_train, recent_ratio=0.3, recent_weight=3.0),
+    scheme_builders = {
+        'uniform': lambda n: np.ones(n),
+        'exp_hl100': lambda n: exponential_weights(n, half_life=100),
+        'exp_hl250': lambda n: exponential_weights(n, half_life=250),
+        'exp_hl500': lambda n: exponential_weights(n, half_life=500),
+        'exp_hl1000': lambda n: exponential_weights(n, half_life=1000),
+        'linear_01': lambda n: linear_weights(n, min_weight=0.1),
+        'linear_03': lambda n: linear_weights(n, min_weight=0.3),
+        'linear_05': lambda n: linear_weights(n, min_weight=0.5),
+        'step_50pct_2x': lambda n: step_weights(n, recent_ratio=0.5, recent_weight=2.0),
+        'step_50pct_3x': lambda n: step_weights(n, recent_ratio=0.5, recent_weight=3.0),
+        'step_30pct_3x': lambda n: step_weights(n, recent_ratio=0.3, recent_weight=3.0),
     }
+    schemes = {name: builder(n_train) for name, builder in scheme_builders.items()}
 
     fig, ax = plt.subplots(figsize=(14, 5))
     dates = df.loc[train_mask, 'date'].values
@@ -156,17 +149,13 @@ def main():
     ax.legend(fontsize=6, loc='upper left')
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step7_weight_schemes.png'), dpi=130, bbox_inches='tight')
+    plt.savefig(os.path.join(OUT, 'step6_weight_schemes.png'), dpi=130, bbox_inches='tight')
     plt.close()
 
     for name, w in schemes.items():
         print(f'  {name:<20} min={w.min():.4f} max={w.max():.4f} mean={w.mean():.4f}')
 
-    # ============================================================================
-    # B) TRAIN WITH EACH WEIGHT SCHEME
-    # ============================================================================
-    print(f'\n{P}\n B) TRAIN ALL COMBINATIONS\n{P}')
-
+    print(f'\n{P}\n B) VALIDATION GRID\n{P}')
     model_configs = {
         'GBM': lambda: GradientBoostingClassifier(
             random_state=RS, n_estimators=300, max_depth=5, learning_rate=0.03, min_samples_leaf=5),
@@ -178,59 +167,110 @@ def main():
             n_estimators=300, max_depth=5, learning_rate=0.03),
     }
 
-    results = []
-    print(f'\n {"Scheme":<22} {"Model":<6} {"Accuracy":>10} {"F1_macro":>10} {"AUC":>8}')
-    print(f' {"-"*60}')
-
+    val_results = []
+    print(f'\n {"Scheme":<22} {"Model":<6} {"Val_Acc":>10} {"Val_F1m":>10} {"Val_AUC":>8}')
+    print(f' {"-"*62}')
     for scheme_name, weights in schemes.items():
-        for mname, mfunc in model_configs.items():
-            model = mfunc()
-            res = train_eval(X_train, X_test, y_train, y_test, weights, model, mname)
-            res['Scheme'] = scheme_name
-            results.append(res)
-            print(f' {scheme_name:<22} {mname:<6} {res["Accuracy"]:>10.4f} {res["F1_macro"]:>10.4f} {res["AUC"]:>8.4f}')
+        for model_name, model_factory in model_configs.items():
+            metrics = train_eval(X_train, X_val, y_train, y_val, weights, model_factory())
+            row = {
+                'Scheme': scheme_name,
+                'Model': model_name,
+                'Val_Accuracy': metrics['Accuracy'],
+                'Val_F1_macro': metrics['F1_macro'],
+                'Val_AUC': metrics['AUC'],
+            }
+            val_results.append(row)
+            print(f' {scheme_name:<22} {model_name:<6} {row["Val_Accuracy"]:>10.4f} {row["Val_F1_macro"]:>10.4f} {row["Val_AUC"]:>8.4f}')
 
-    # ============================================================================
-    # C) SUMMARY
-    # ============================================================================
-    print(f'\n{P}\n C) SUMMARY\n{P}')
+    vdf = pd.DataFrame(val_results).sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
+    vdf.to_csv(os.path.join(OUT, 'step6_validation_results.csv'), index=False)
 
-    rdf = pd.DataFrame(results).sort_values('Accuracy', ascending=False)
-    rdf.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step7_results.csv'), index=False)
+    print(f'\n{P}\n C) HOLDOUT REFIT\n{P}')
+    selected_rows = []
+    X_train_val = pd.concat([X_train, X_val])
+    y_train_val = pd.concat([y_train, y_val])
+    for model_name, model_factory in model_configs.items():
+        best_val = (
+            vdf[vdf['Model'] == model_name]
+            .sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
+            .iloc[0]
+        )
+        scheme_name = best_val['Scheme']
+        weights_train_val = scheme_builders[scheme_name](len(X_train_val))
+        holdout = train_eval(X_train_val, X_test, y_train_val, y_test, weights_train_val, model_factory())
+        selected_rows.append({
+            'Model': model_name,
+            'Scheme': scheme_name,
+            'Val_Accuracy': best_val['Val_Accuracy'],
+            'Val_F1_macro': best_val['Val_F1_macro'],
+            'Val_AUC': best_val['Val_AUC'],
+            'Holdout_Accuracy': holdout['Accuracy'],
+            'Holdout_F1_macro': holdout['F1_macro'],
+            'Holdout_AUC': holdout['AUC'],
+        })
+        print(
+            f'  {model_name}: {scheme_name:<22} '
+            f'ValAcc={best_val["Val_Accuracy"]:.4f} '
+            f'HoldoutAcc={holdout["Accuracy"]:.4f}'
+        )
 
-    # Best per model
-    print(f'\n Best per model:')
-    for m in ['GBM', 'XGB', 'LGBM']:
-        sub = rdf[rdf.Model == m].iloc[0]
-        print(f'   {m}: {sub.Scheme:<22} Acc={sub.Accuracy:.4f} F1m={sub.F1_macro:.4f} AUC={sub.AUC:.4f}')
+    sdf = pd.DataFrame(selected_rows).sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
+    sdf.to_csv(os.path.join(OUT, 'step6_results.csv'), index=False)
 
-    # Best overall
-    best = rdf.iloc[0]
-    print(f'\n Best overall:')
-    print(f'   {best.Model} + {best.Scheme}: Acc={best.Accuracy:.4f} F1m={best.F1_macro:.4f} AUC={best.AUC:.4f}')
+    best_overall = sdf.iloc[0]
+    uniform_best = (
+        vdf[vdf['Scheme'] == 'uniform']
+        .sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
+        .iloc[0]
+    )
 
-    # Uniform comparison
-    uniform_best = rdf[rdf.Scheme == 'uniform'].iloc[0]
-    print(f'\n Uniform (no decay):')
-    print(f'   {uniform_best.Model}: Acc={uniform_best.Accuracy:.4f}')
-    print(f'\n Improvement: {(best.Accuracy - uniform_best.Accuracy)*100:+.2f}%')
+    print(f'\n Best per model (scheme selected on validation):')
+    for row in sdf.itertuples(index=False):
+        print(
+            f'   {row.Model}: {row.Scheme:<22} '
+            f'ValAcc={row.Val_Accuracy:.4f} ValF1m={row.Val_F1_macro:.4f} '
+            f'HoldoutAcc={row.Holdout_Accuracy:.4f}'
+        )
 
-    # Bar chart: best accuracy per scheme
-    scheme_best = rdf.groupby('Scheme')['Accuracy'].max().sort_values(ascending=False)
+    print(f'\n Best overall (selected on validation):')
+    print(
+        f'   {best_overall.Model} + {best_overall.Scheme}: '
+        f'ValAcc={best_overall.Val_Accuracy:.4f} ValF1m={best_overall.Val_F1_macro:.4f}'
+    )
+    print(
+        f'   Holdout: Acc={best_overall.Holdout_Accuracy:.4f} '
+        f'F1m={best_overall.Holdout_F1_macro:.4f} AUC={best_overall.Holdout_AUC:.4f}'
+    )
+
+    print(f'\n Uniform baseline on validation:')
+    print(
+        f'   {uniform_best.Model}: '
+        f'ValAcc={uniform_best.Val_Accuracy:.4f} '
+        f'Improvement={((best_overall.Val_Accuracy - uniform_best.Val_Accuracy) * 100):+.2f}%'
+    )
+
+    scheme_best = vdf.groupby('Scheme')['Val_Accuracy'].max().sort_values(ascending=False)
     fig, ax = plt.subplots(figsize=(12, 6))
     colors = ['#2ecc71' if v == scheme_best.max() else '#4C72B0' for v in scheme_best]
     ax.barh(range(len(scheme_best)), scheme_best.values, color=colors)
     ax.set_yticks(range(len(scheme_best)))
     ax.set_yticklabels(scheme_best.index, fontsize=8)
     ax.invert_yaxis()
-    ax.set_xlabel('Best Accuracy')
-    ax.set_title('Best Accuracy per Weight Scheme (TOP_50 features)')
-    ax.axvline(x=uniform_best.Accuracy, color='red', ls='--', alpha=0.5, label=f'Uniform={uniform_best.Accuracy:.4f}')
+    ax.set_xlabel('Best Validation Accuracy')
+    ax.set_title('Best Validation Accuracy per Weight Scheme (TOP_50 features)')
+    ax.axvline(
+        x=uniform_best.Val_Accuracy,
+        color='red',
+        ls='--',
+        alpha=0.5,
+        label=f'Uniform={uniform_best.Val_Accuracy:.4f}',
+    )
     for i, v in enumerate(scheme_best.values):
         ax.text(v + 0.001, i, f'{v:.4f}', va='center', fontsize=7)
     ax.legend()
     plt.tight_layout()
-    plt.savefig(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step7_comparison.png'), dpi=130, bbox_inches='tight')
+    plt.savefig(os.path.join(OUT, 'step6_comparison.png'), dpi=130, bbox_inches='tight')
     plt.close()
 
     print(f'\n Saved to ml/results/')

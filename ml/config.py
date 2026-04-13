@@ -1,7 +1,7 @@
 """
 Shared config & utils for ML pipeline.
 """
-import os, warnings
+import os, random, warnings
 warnings.filterwarnings('ignore')
 
 import pandas as pd, numpy as np
@@ -15,6 +15,7 @@ os.makedirs(OUT_DIR, exist_ok=True)
 
 TARGET = 'oil_return_fwd1'
 TARGET_DATE_COL = 'oil_return_fwd1_date'
+VAL_SPLIT_DATE = '2022-01-01'
 SPLIT_DATE = '2023-01-01'
 N_SPLITS = 5  # TimeSeriesSplit
 RANDOM_STATE = 42
@@ -42,6 +43,16 @@ def get_train_test_masks(df):
     train_mask = split_values < pd.Timestamp(SPLIT_DATE)
     test_mask = split_values >= pd.Timestamp(SPLIT_DATE)
     return train_mask, test_mask, split_col
+
+
+def get_train_val_test_masks(df):
+    """Split by target date into train / validation / final test."""
+    split_col = TARGET_DATE_COL if TARGET_DATE_COL in df.columns else 'date'
+    split_values = pd.to_datetime(df[split_col])
+    train_mask = split_values < pd.Timestamp(VAL_SPLIT_DATE)
+    val_mask = (split_values >= pd.Timestamp(VAL_SPLIT_DATE)) & (split_values < pd.Timestamp(SPLIT_DATE))
+    test_mask = split_values >= pd.Timestamp(SPLIT_DATE)
+    return train_mask, val_mask, test_mask, split_col
 
 
 def load_data():
@@ -88,3 +99,11 @@ def load_data():
 
 def get_tscv():
     return TimeSeriesSplit(n_splits=N_SPLITS)
+
+
+def set_global_seed(seed=RANDOM_STATE):
+    """Best-effort reproducibility across numpy/sklearn/xgboost/lightgbm single-process runs."""
+    os.environ.setdefault('PYTHONHASHSEED', str(seed))
+    random.seed(seed)
+    np.random.seed(seed)
+    return seed

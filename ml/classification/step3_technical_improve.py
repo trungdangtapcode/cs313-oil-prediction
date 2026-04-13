@@ -35,7 +35,8 @@ Model selection:
 
 Outputs:
   - Console summary of all target/model combinations
-  - results/improved_classification.csv
+  - results/step3_validation_results.csv
+  - results/step3_results.csv
 
 Usage:
   python ml/classification/step3_technical_improve.py
@@ -48,12 +49,13 @@ import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.base import clone
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, classification_report
+from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import get_tscv, get_train_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL
+from config import get_tscv, get_train_val_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, set_global_seed
 
 P = '=' * 90
 
@@ -187,10 +189,10 @@ def build_targets(df):
 
 
 # ============================================================================
-# C) TRAIN & EVALUATE
+# C) TRAIN / VALIDATE / TEST
 # ============================================================================
-def train_and_eval(X_train, X_test, y_train, y_test, target_name):
-    """Train 3 models, return best results."""
+def train_and_validate(X_train, X_val, y_train, y_val, target_name):
+    """Tune on train, evaluate on validation."""
     tscv = get_tscv()
 
     models = {
@@ -208,31 +210,57 @@ def train_and_eval(X_train, X_test, y_train, y_test, target_name):
         gs = RandomizedSearchCV(model, grid, n_iter=10, cv=tscv,
                                 scoring='accuracy', refit=True, n_jobs=1, random_state=RS)
         gs.fit(X_train, y_train)
-        pred = gs.best_estimator_.predict(X_test)
-        prob = gs.best_estimator_.predict_proba(X_test) if hasattr(gs.best_estimator_, 'predict_proba') else None
+        pred = gs.best_estimator_.predict(X_val)
+        prob = gs.best_estimator_.predict_proba(X_val) if hasattr(gs.best_estimator_, 'predict_proba') else None
 
-        acc = accuracy_score(y_test, pred)
-        f1m = f1_score(y_test, pred, average='macro')
+        acc = accuracy_score(y_val, pred)
+        f1m = f1_score(y_val, pred, average='macro')
         try:
-            auc = roc_auc_score(y_test, prob[:, 1]) if prob is not None and len(np.unique(y_test)) == 2 else np.nan
+            auc = roc_auc_score(y_val, prob[:, 1]) if prob is not None and len(np.unique(y_val)) == 2 else np.nan
         except:
             auc = np.nan
 
         results.append({
             'Target': target_name, 'Model': name,
-            'Accuracy': acc, 'F1_macro': f1m, 'AUC': auc,
+            'Val_Accuracy': acc, 'Val_F1_macro': f1m, 'Val_AUC': auc,
             'CV_Acc': gs.best_score_, 'Params': str(gs.best_params_),
-            'pred': pred, 'prob': prob,
+            'estimator': gs.best_estimator_,
         })
 
     return results
+
+
+def pick_best_result(results):
+    """Select the strongest validation result without touching final test."""
+    return max(results, key=lambda r: (r['Val_Accuracy'], r['Val_F1_macro'], r['CV_Acc']))
+
+
+def refit_on_train_val(best_result, X_train, X_val, y_train, y_val, X_test, y_test):
+    """Refit the selected model on train+val and evaluate once on final test."""
+    X_train_val = pd.concat([X_train, X_val])
+    y_train_val = pd.concat([y_train, y_val])
+    final_model = clone(best_result['estimator'])
+    final_model.fit(X_train_val, y_train_val)
+
+    pred = final_model.predict(X_test)
+    prob = final_model.predict_proba(X_test)[:, 1] if hasattr(final_model, 'predict_proba') else None
+    auc = roc_auc_score(y_test, prob) if prob is not None and len(np.unique(y_test)) == 2 else np.nan
+    return {
+        'Test_Accuracy': accuracy_score(y_test, pred),
+        'Test_F1_macro': f1_score(y_test, pred, average='macro'),
+        'Test_AUC': auc,
+        'final_estimator': final_model,
+        'prob': prob,
+    }
 
 
 # ============================================================================
 # MAIN
 # ============================================================================
 def main():
+    seed = set_global_seed()
     print(f'\n{P}\n STEP 4: IMPROVE CLASSIFICATION\n{P}')
+    print(f'  Seed: {seed}')
 
     # Load raw data
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
@@ -249,8 +277,8 @@ def main():
         valid = v[v >= 0] if -1 in v.values else v
         print(f'    {k}: UP={int((valid==1).sum())} DOWN={int((valid==0).sum())} Skip={int((v==-1).sum())} ({len(valid)} usable)')
 
-    # Train/test split
-    train_mask, test_mask, _ = get_train_test_masks(df)
+    # Train / validation / final test split
+    train_mask, val_mask, test_mask, _ = get_train_val_test_masks(df)
 
     # Features = everything except date, target, and raw oil price
     exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
@@ -258,6 +286,7 @@ def main():
     print(f'\n    Features: {len(features)}')
 
     X_train_full = df.loc[train_mask, features]
+    X_val_full = df.loc[val_mask, features]
     X_test_full = df.loc[test_mask, features]
 
     # ============================================================================
@@ -265,92 +294,146 @@ def main():
     # ============================================================================
     print(f'\n{P}\n C) TRAINING ON EACH TARGET\n{P}')
 
-    all_results = []
+    all_val_results = []
+    selected_results = []
+    selected_models = {}
     for target_name, target_series in targets.items():
         print(f'\n--- Target: {target_name} ---')
 
         y_train = target_series[train_mask].copy()
+        y_val = target_series[val_mask].copy()
         y_test = target_series[test_mask].copy()
 
-        # For threshold targets, remove -1 (neutral) from train and test
+        # For threshold targets, remove -1 (neutral) independently in each split.
         if -1 in y_train.values:
             train_valid = y_train >= 0
+            val_valid = y_val >= 0
             test_valid = y_test >= 0
             Xtr = X_train_full[train_valid.values]
+            Xva = X_val_full[val_valid.values]
             Xte = X_test_full[test_valid.values]
-            ytr = y_train[train_valid.values]
+            ytr = y_train[train_valid.values].astype(int)
+            yva = y_val[val_valid.values].astype(int)
             yte = y_test[test_valid.values]
-            print(f'  Train: {len(ytr)} (skipped {(~train_valid).sum()}) | Test: {len(yte)} (skipped {(~test_valid).sum()})')
+            print(f'  Train: {len(ytr)} (skipped {(~train_valid).sum()}) | Val: {len(yva)} (skipped {(~val_valid).sum()}) | Test: {len(yte)} (skipped {(~test_valid).sum()})')
         else:
-            # For multi-day forward, drop NaN at end
+            # For standard targets, drop NaN independently in each split.
             valid_tr = y_train.notna()
+            valid_va = y_val.notna()
             valid_te = y_test.notna()
             Xtr = X_train_full[valid_tr.values]
+            Xva = X_val_full[valid_va.values]
             Xte = X_test_full[valid_te.values]
             ytr = y_train[valid_tr.values].astype(int)
+            yva = y_val[valid_va.values].astype(int)
             yte = y_test[valid_te.values].astype(int)
-            print(f'  Train: {len(ytr)} | Test: {len(yte)}')
+            print(f'  Train: {len(ytr)} | Val: {len(yva)} | Test: {len(yte)}')
 
-        if len(ytr) < 100 or len(yte) < 50:
+        if len(ytr) < 100 or len(yva) < 50 or len(yte) < 50:
             print(f'  SKIP - not enough data')
             continue
 
         print(f'  Distribution: UP={int((ytr==1).sum())}({(ytr==1).mean():.1%}) DOWN={int((ytr==0).sum())}({(ytr==0).mean():.1%})')
 
-        res = train_and_eval(Xtr, Xte, ytr, yte, target_name)
-        for r in res:
-            print(f'    {r["Model"]:<6} Acc={r["Accuracy"]:.4f} F1m={r["F1_macro"]:.4f} AUC={r["AUC"]:.4f} (CV={r["CV_Acc"]:.4f})')
-            all_results.append({k: v for k, v in r.items() if k not in ['pred', 'prob']})
+        val_results = train_and_validate(Xtr, Xva, ytr, yva, target_name)
+        for r in val_results:
+            print(f'    {r["Model"]:<6} ValAcc={r["Val_Accuracy"]:.4f} ValF1m={r["Val_F1_macro"]:.4f} ValAUC={r["Val_AUC"]:.4f} (CV={r["CV_Acc"]:.4f})')
+            all_val_results.append({k: v for k, v in r.items() if k != 'estimator'})
+
+        best_val = pick_best_result(val_results)
+        final_res = refit_on_train_val(best_val, Xtr, Xva, ytr, yva, Xte, yte)
+        selected_results.append({
+            'Target': target_name,
+            'Model': best_val['Model'],
+            'Val_Accuracy': best_val['Val_Accuracy'],
+            'Val_F1_macro': best_val['Val_F1_macro'],
+            'Val_AUC': best_val['Val_AUC'],
+            'CV_Acc': best_val['CV_Acc'],
+            'Test_Accuracy': final_res['Test_Accuracy'],
+            'Test_F1_macro': final_res['Test_F1_macro'],
+            'Test_AUC': final_res['Test_AUC'],
+            'Params': best_val['Params'],
+        })
+        selected_models[target_name] = {
+            'best_val': best_val,
+            'X_train': Xtr, 'X_val': Xva, 'X_test': Xte,
+            'y_train': ytr, 'y_val': yva, 'y_test': yte,
+        }
+        print(f'    Selected -> {best_val["Model"]}: TestAcc={final_res["Test_Accuracy"]:.4f} TestF1m={final_res["Test_F1_macro"]:.4f} TestAUC={final_res["Test_AUC"]:.4f}')
 
     # ============================================================================
     # D) PROBABILITY FILTERING
     # ============================================================================
     print(f'\n{P}\n D) PROBABILITY FILTERING (best model, 1d_raw target)\n{P}')
 
-    y_tr_raw = targets['1d_raw'][train_mask]
-    y_te_raw = targets['1d_raw'][test_mask]
-    valid_tr = y_tr_raw.notna(); valid_te = y_te_raw.notna()
+    raw_selected = selected_models.get('1d_raw')
+    if raw_selected is not None:
+        train_model = raw_selected['best_val']['estimator']
+        val_probs = train_model.predict_proba(raw_selected['X_val'])[:, 1]
+        y_val_true = raw_selected['y_val'].values
 
-    best_model = XGBClassifier(random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss',
-                                n_estimators=500, max_depth=5, learning_rate=0.01)
-    best_model.fit(X_train_full[valid_tr.values], y_tr_raw[valid_tr.values].astype(int))
-    probs = best_model.predict_proba(X_test_full[valid_te.values])[:, 1]
-    y_true = y_te_raw[valid_te.values].astype(int).values
+        print(f'\n {"Threshold":<12} {"Val_traded":>10} {"Val_Acc":>10} {"Val_Acc_tr":>12} {"Coverage":>10}')
+        print(f' {"-"*60}')
+        best_threshold = 0.50
+        best_val_acc = -np.inf
+        best_val_cov = -np.inf
+        for thresh in [0.50, 0.52, 0.55, 0.58, 0.60, 0.65]:
+            confident = (val_probs > thresh) | (val_probs < (1 - thresh))
+            if confident.sum() < 10:
+                continue
+            pred_filt = (val_probs[confident] > 0.5).astype(int)
+            acc_filt = accuracy_score(y_val_true[confident], pred_filt)
+            coverage = confident.mean()
+            pred_all = (val_probs > 0.5).astype(int)
+            acc_all = accuracy_score(y_val_true, pred_all)
+            print(f' {thresh:<12.2f} {int(confident.sum()):>10} {acc_all:>10.4f} {acc_filt:>12.4f} {coverage:>10.1%}')
+            if acc_filt > best_val_acc or (acc_filt == best_val_acc and coverage > best_val_cov):
+                best_threshold = thresh
+                best_val_acc = acc_filt
+                best_val_cov = coverage
 
-    print(f'\n {"Threshold":<12} {"N_traded":>10} {"Acc":>8} {"Acc_traded":>12} {"Coverage":>10}')
-    print(f' {"-"*56}')
-    for thresh in [0.50, 0.52, 0.55, 0.58, 0.60, 0.65]:
-        confident = (probs > thresh) | (probs < (1 - thresh))
-        if confident.sum() < 10:
-            continue
-        pred_filt = (probs[confident] > 0.5).astype(int)
-        acc_filt = accuracy_score(y_true[confident], pred_filt)
-        coverage = confident.mean()
-        pred_all = (probs > 0.5).astype(int)
-        acc_all = accuracy_score(y_true, pred_all)
-        print(f' {thresh:<12.2f} {int(confident.sum()):>10} {acc_all:>8.4f} {acc_filt:>12.4f} {coverage:>10.1%}')
+        X_train_val_raw = pd.concat([raw_selected['X_train'], raw_selected['X_val']])
+        y_train_val_raw = pd.concat([raw_selected['y_train'], raw_selected['y_val']])
+        final_model = clone(train_model)
+        final_model.fit(X_train_val_raw, y_train_val_raw)
+        test_probs = final_model.predict_proba(raw_selected['X_test'])[:, 1]
+        y_test_true = raw_selected['y_test'].values
+        confident_test = (test_probs > best_threshold) | (test_probs < (1 - best_threshold))
+        if confident_test.sum() > 0:
+            pred_test_filt = (test_probs[confident_test] > 0.5).astype(int)
+            acc_test_filt = accuracy_score(y_test_true[confident_test], pred_test_filt)
+            coverage_test = confident_test.mean()
+        else:
+            acc_test_filt = np.nan
+            coverage_test = 0.0
+        pred_test_all = (test_probs > 0.5).astype(int)
+        acc_test_all = accuracy_score(y_test_true, pred_test_all)
+        print(f'\n Selected threshold on validation: {best_threshold:.2f}')
+        print(f' Holdout test -> Acc={acc_test_all:.4f} | Acc_traded={acc_test_filt:.4f} | Coverage={coverage_test:.1%}')
+    else:
+        print('  Skip probability filtering: 1d_raw was not trained.')
 
     # ============================================================================
     # SUMMARY
     # ============================================================================
     print(f'\n{P}\n SUMMARY\n{P}')
-    rdf = pd.DataFrame(all_results).sort_values('Accuracy', ascending=False)
-    rdf.index = range(1, len(rdf) + 1)
+    vdf = pd.DataFrame(all_val_results).sort_values(['Val_Accuracy', 'Val_F1_macro'], ascending=False)
+    sdf = pd.DataFrame(selected_results).sort_values(['Val_Accuracy', 'Val_F1_macro'], ascending=False)
+    vdf.index = range(1, len(vdf) + 1)
+    sdf.index = range(1, len(sdf) + 1)
     pd.set_option('display.float_format', '{:.4f}'.format); pd.set_option('display.width', 200)
-    print(rdf[['Target', 'Model', 'Accuracy', 'F1_macro', 'AUC', 'CV_Acc']].to_string())
-    rdf.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'improved_classification.csv'), index=False)
+    print('\n Validation leaderboard:')
+    print(vdf[['Target', 'Model', 'Val_Accuracy', 'Val_F1_macro', 'Val_AUC', 'CV_Acc']].to_string())
+    print('\n Final holdout results (selected on validation):')
+    print(sdf[['Target', 'Model', 'Val_Accuracy', 'Val_F1_macro', 'Test_Accuracy', 'Test_F1_macro', 'Test_AUC']].to_string())
+    vdf.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step3_validation_results.csv'), index=False)
+    sdf.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step3_results.csv'), index=False)
 
-    # Best per target
-    print(f'\n Best per target:')
-    for t in rdf['Target'].unique():
-        best = rdf[rdf['Target'] == t].iloc[0]
-        print(f'  {t:<12} {best["Model"]:<6} Acc={best["Accuracy"]:.4f} F1m={best["F1_macro"]:.4f} AUC={best["AUC"]:.4f}')
-
-    baseline_acc = 0.5274  # GBM baseline from train_classification.py
-    best_overall = rdf.iloc[0]
-    print(f'\n Baseline (GBM, 1d, no threshold): Acc=0.5274')
-    print(f' Best overall: {best_overall["Target"]} / {best_overall["Model"]} Acc={best_overall["Accuracy"]:.4f}')
-    print(f' Improvement: {(best_overall["Accuracy"] - baseline_acc)*100:+.2f}%')
+    if not sdf.empty:
+        best_overall = sdf.iloc[0]
+        print(f'\n Best overall (chosen on validation): {best_overall["Target"]} / {best_overall["Model"]}')
+        print(f' Validation: Acc={best_overall["Val_Accuracy"]:.4f} F1m={best_overall["Val_F1_macro"]:.4f}')
+        print(f' Holdout test: Acc={best_overall["Test_Accuracy"]:.4f} F1m={best_overall["Test_F1_macro"]:.4f} AUC={best_overall["Test_AUC"]:.4f}')
 
     print(f'\n{P}\n DONE\n{P}')
 

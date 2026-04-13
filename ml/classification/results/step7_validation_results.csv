@@ -1,0 +1,4 @@
+Model,CV_Acc,Val_Accuracy,Val_F1_macro,Val_AUC,Time_s,Params
+GBM,0.5233898305084745,0.5269230769230769,0.5095016794736116,0.5652225378787878,918.4,"{'subsample': 1.0, 'n_estimators': 500, 'min_samples_split': 20, 'min_samples_leaf': 20, 'max_features': 'sqrt', 'max_depth': 5, 'learning_rate': 0.005}"
+XGBoost,0.5328813559322033,0.5115384615384615,0.3453478459128849,0.5804332386363635,196.4,"{'subsample': 0.6, 'scale_pos_weight': 1.1, 'reg_lambda': 5.0, 'reg_alpha': 1.0, 'n_estimators': 100, 'min_child_weight': 3, 'max_depth': 5, 'learning_rate': 0.005, 'gamma': 0.1, 'colsample_bytree': 1.0}"
+LightGBM,0.52,0.5076923076923077,0.3627450980392157,0.5360144412878788,98.5,"{'subsample': 0.9, 'reg_lambda': 5.0, 'reg_alpha': 0.01, 'num_leaves': 7, 'n_estimators': 200, 'min_child_samples': 20, 'max_depth': 3, 'learning_rate': 0.005, 'colsample_bytree': 1.0}"

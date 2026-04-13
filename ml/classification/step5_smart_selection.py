@@ -30,9 +30,10 @@ Model selection:
 
 Outputs:
   - Console cluster summary and model comparison
-  - results/step6_selected_features.csv
-  - results/step6_perm_importance.csv
-  - results/step6_results.csv
+  - results/step5_selected_features.csv
+  - results/step5_perm_importance.csv
+  - results/step5_results.csv
+  - results/step5_set_comparison.csv
 
 Usage:
   python ml/classification/step5_smart_selection.py
@@ -46,6 +47,7 @@ import matplotlib.pyplot as plt
 
 from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import squareform
+from sklearn.base import clone
 from sklearn.inspection import permutation_importance
 from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
@@ -53,14 +55,16 @@ from sklearn.ensemble import GradientBoostingClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import get_tscv, get_train_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL
+from config import get_tscv, get_train_val_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, set_global_seed
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
 
 
 def main():
+    seed = set_global_seed()
     print(f'\n{P}\n STEP 6: SMART FEATURE SELECTION\n{P}')
+    print(f'  Seed: {seed}')
 
     # Load + technicals (shifted)
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
@@ -69,14 +73,16 @@ def main():
     exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
     features = [c for c in df.columns if c not in exclude]
 
-    train_mask, test_mask, _ = get_train_test_masks(df)
+    train_mask, val_mask, test_mask, _ = get_train_val_test_masks(df)
 
     X_train = df.loc[train_mask, features]
+    X_val = df.loc[val_mask, features]
     X_test = df.loc[test_mask, features]
     y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
+    y_val = (df.loc[val_mask, TARGET] > 0).astype(int)
     y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
-    print(f'  Features: {len(features)} | Train: {len(X_train)} | Test: {len(X_test)}')
+    print(f'  Features: {len(features)} | Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}')
 
     # ============================================================================
     # STEP A: Correlation Clustering
@@ -84,7 +90,7 @@ def main():
     print(f'\n{P}\n A) CORRELATION CLUSTERING\n{P}')
 
     # Spearman correlation -> distance matrix
-    corr = X_train.corr(method='spearman').abs()
+    corr = X_train.corr(method='spearman').abs().fillna(0.0)
     dist_arr = (1 - corr).to_numpy(copy=True).astype(float)
     np.fill_diagonal(dist_arr, 0)
     distance = pd.DataFrame(dist_arr, index=corr.index, columns=corr.columns)
@@ -134,7 +140,7 @@ def main():
 
     print('  Computing permutation importance (5 repeats)...')
     t0 = time.time()
-    perm = permutation_importance(base_model, X_test, y_test,
+    perm = permutation_importance(base_model, X_val, y_val,
                                   n_repeats=5, random_state=RS, n_jobs=1,
                                   scoring='accuracy')
     print(f'  Done ({time.time()-t0:.1f}s)')
@@ -193,7 +199,7 @@ def main():
         topn = perm_df.head(n)['feature'].tolist()
         sets[f'PERM_TOP_{n}'] = topn
 
-    print(f'\n {"Set":<25} {"N":>4} {"LGBM_Acc":>10} {"XGB_Acc":>10} {"GBM_Acc":>10}')
+    print(f'\n {"Set":<25} {"N":>4} {"LGBM_Val":>10} {"XGB_Val":>10} {"GBM_Val":>10}')
     print(f' {"-"*64}')
 
     all_results = []
@@ -208,18 +214,18 @@ def main():
                                                 n_estimators=300, max_depth=5, learning_rate=0.05)),
         ]:
             model.fit(X_train[feats], y_train)
-            pred = model.predict(X_test[feats])
-            acc = accuracy_score(y_test, pred)
-            row[f'{mname}_Acc'] = acc
+            pred = model.predict(X_val[feats])
+            acc = accuracy_score(y_val, pred)
+            row[f'{mname}_Val'] = acc
         all_results.append(row)
-        print(f' {set_name:<25} {len(feats):>4} {row["LGBM_Acc"]:>10.4f} {row["XGB_Acc"]:>10.4f} {row["GBM_Acc"]:>10.4f}')
+        print(f' {set_name:<25} {len(feats):>4} {row["LGBM_Val"]:>10.4f} {row["XGB_Val"]:>10.4f} {row["GBM_Val"]:>10.4f}')
 
     # ============================================================================
     # STEP E: Final training with grid search
     # ============================================================================
-    # Find the best feature set
+    # Find the best feature set on validation
     res_df = pd.DataFrame(all_results)
-    res_df['best_acc'] = res_df[['LGBM_Acc', 'XGB_Acc', 'GBM_Acc']].max(axis=1)
+    res_df['best_acc'] = res_df[['LGBM_Val', 'XGB_Val', 'GBM_Val']].max(axis=1)
     best_set_name = res_df.loc[res_df['best_acc'].idxmax(), 'Set']
     best_feats = sets[best_set_name]
 
@@ -245,44 +251,61 @@ def main():
         gs = RandomizedSearchCV(model, grid, n_iter=15, cv=tscv,
                                 scoring='accuracy', refit=True, n_jobs=1, random_state=RS)
         gs.fit(X_train[best_feats], y_train)
-        pred = gs.best_estimator_.predict(X_test[best_feats])
-        prob = gs.best_estimator_.predict_proba(X_test[best_feats])[:, 1]
-        acc = accuracy_score(y_test, pred)
-        f1m = f1_score(y_test, pred, average='macro')
-        auc = roc_auc_score(y_test, prob)
+        pred = gs.best_estimator_.predict(X_val[best_feats])
+        prob = gs.best_estimator_.predict_proba(X_val[best_feats])[:, 1]
+        acc = accuracy_score(y_val, pred)
+        f1m = f1_score(y_val, pred, average='macro')
+        auc = roc_auc_score(y_val, prob)
         elapsed = round(time.time() - t0, 1)
-        final_results.append({'Model': name, 'Accuracy': acc, 'F1_macro': f1m, 'AUC': auc,
-                              'CV_Acc': gs.best_score_, 'Time_s': elapsed})
+        final_results.append({'Model': name, 'Val_Accuracy': acc, 'Val_F1_macro': f1m, 'Val_AUC': auc,
+                              'CV_Acc': gs.best_score_, 'Time_s': elapsed, 'Estimator': gs.best_estimator_})
         print(f'  Best: {gs.best_params_}')
-        print(f'  Acc={acc:.4f} F1m={f1m:.4f} AUC={auc:.4f} (CV={gs.best_score_:.4f}, {elapsed}s)')
+        print(f'  ValAcc={acc:.4f} ValF1m={f1m:.4f} ValAUC={auc:.4f} (CV={gs.best_score_:.4f}, {elapsed}s)')
 
     # ============================================================================
     # SUMMARY
     # ============================================================================
     print(f'\n{P}\n SUMMARY\n{P}')
 
-    fdf = pd.DataFrame(final_results).sort_values('Accuracy', ascending=False)
-    print(fdf.to_string(index=False))
-
+    fdf = pd.DataFrame(final_results).sort_values(['Val_Accuracy', 'Val_F1_macro'], ascending=False)
     best = fdf.iloc[0]
+    final_model = clone(best['Estimator'])
+    X_train_val = pd.concat([X_train[best_feats], X_val[best_feats]])
+    y_train_val = pd.concat([y_train, y_val])
+    final_model.fit(X_train_val, y_train_val)
+    test_pred = final_model.predict(X_test[best_feats])
+    test_prob = final_model.predict_proba(X_test[best_feats])[:, 1]
+    test_acc = accuracy_score(y_test, test_pred)
+    test_f1m = f1_score(y_test, test_pred, average='macro')
+    test_auc = roc_auc_score(y_test, test_prob)
+
+    fdf['Final_Test_Accuracy'] = np.nan
+    fdf['Final_Test_F1_macro'] = np.nan
+    fdf['Final_Test_AUC'] = np.nan
+    fdf.loc[fdf.index[0], 'Final_Test_Accuracy'] = test_acc
+    fdf.loc[fdf.index[0], 'Final_Test_F1_macro'] = test_f1m
+    fdf.loc[fdf.index[0], 'Final_Test_AUC'] = test_auc
+    print(fdf.drop(columns=['Estimator']).to_string(index=False))
     print(f'\n Pipeline:')
     print(f'   81 features')
     print(f'   -> Correlation clustering (threshold={THRESH}, |rho|>0.7 grouped)')
     print(f'   -> {n_clusters} clusters')
     print(f'   -> Permutation importance keeps 1 best feature per cluster')
     print(f'   -> {best_set_name}: {len(best_feats)} features')
-    print(f'   -> {best["Model"]}: Acc={best["Accuracy"]:.4f}')
+    print(f'   -> {best["Model"]}: ValAcc={best["Val_Accuracy"]:.4f}')
+    print(f'   -> Holdout test: Acc={test_acc:.4f} F1m={test_f1m:.4f} AUC={test_auc:.4f}')
     print(f'\n Comparison:')
     print(f'   Baseline (42 features, no technicals):   Acc=0.5274')
     print(f'   Step4 (81 features, no selection):        Acc=0.5530')
     print(f'   Step5 (naive MI+Spearman selection):      Acc=0.5619')
-    print(f'   Step6 (cluster+perm selection):            Acc={best["Accuracy"]:.4f}')
+    print(f'   Step6 (cluster+perm selection, val):       Acc={best["Val_Accuracy"]:.4f}')
 
     # Save
     selected_df = pd.DataFrame({'feature': best_feats})
-    selected_df.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step6_selected_features.csv'), index=False)
-    fdf.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step6_results.csv'), index=False)
-    perm_df.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step6_perm_importance.csv'), index=False)
+    selected_df.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_selected_features.csv'), index=False)
+    fdf.drop(columns=['Estimator']).to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_results.csv'), index=False)
+    perm_df.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_perm_importance.csv'), index=False)
+    res_df.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_set_comparison.csv'), index=False)
 
     print(f'\n{P}\n DONE\n{P}')
 

@@ -1,0 +1,2 @@
+Model,Accuracy,F1_binary,F1_macro,AUC,Precision_UP,Recall_UP,TP,FP,TN,FN,Selected_On,Validation_F1_macro,Validation_Accuracy,CV_Acc,Params
+GradientBoosting,0.525,0.3945371775417299,0.5018719188394252,0.544881970112701,0.5394190871369294,0.31100478468899523,130,111,311,288,validation,0.574404761904762,0.5769230769230769,0.5102310231023102,"{'learning_rate': 0.05, 'max_depth': 5, 'n_estimators': 300}"
