@@ -10,7 +10,7 @@ Goal of this step:
   - Compare tuned single models against ensemble models
 
 Target used in this file:
-  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+  - Binary classification: oil_return_fwd1 > 0 -> UP=1, otherwise DOWN=0
 
 Input features:
   - Features loaded from config.load_data()

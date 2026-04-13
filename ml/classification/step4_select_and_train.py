@@ -11,10 +11,10 @@ Goal of this step:
   - Retrain several models on the best-performing subset
 
 Target used in this file:
-  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+  - Binary classification: oil_return_fwd1 > 0 -> UP=1, otherwise DOWN=0
 
 Input features:
-  - Base features from dataset_step4_noleak.csv
+  - Base features from dataset_step4_transformed.csv
   - Technical and lag features added by step3_technical_improve.add_technical_features()
   - Final candidate set is the no-leakage 81-feature dataset
 
@@ -51,7 +51,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import load_data, get_tscv, RANDOM_STATE as RS, DATA_PATH, SPLIT_DATE
+from config import get_tscv, get_train_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
@@ -65,12 +65,11 @@ def main():
     df = add_technical_features(df)
 
     # Target
-    y_col = 'oil_return'
-    exclude = {'date', y_col, 'oil_close'}
+    y_col = TARGET
+    exclude = {'date', y_col, TARGET_DATE_COL, 'oil_close'}
     features = [c for c in df.columns if c not in exclude]
 
-    train_mask = df['date'] < SPLIT_DATE
-    test_mask = df['date'] >= SPLIT_DATE
+    train_mask, test_mask, _ = get_train_test_masks(df)
 
     X_train = df.loc[train_mask, features]
     X_test = df.loc[test_mask, features]

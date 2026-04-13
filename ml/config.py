@@ -9,11 +9,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-DATA_PATH = os.path.join(ROOT, 'data', 'processed', 'dataset_step4_noleak.csv')
+DATA_PATH = os.path.join(ROOT, 'data', 'processed', 'dataset_step4_transformed.csv')
 OUT_DIR = os.path.join(ROOT, 'ml', 'results')
 os.makedirs(OUT_DIR, exist_ok=True)
 
-TARGET = 'oil_return'
+TARGET = 'oil_return_fwd1'
+TARGET_DATE_COL = 'oil_return_fwd1_date'
 SPLIT_DATE = '2023-01-01'
 N_SPLITS = 5  # TimeSeriesSplit
 RANDOM_STATE = 42
@@ -21,6 +22,7 @@ RANDOM_STATE = 42
 # Features to DROP (non-stationary raw prices, leakage, redundant, near-zero-var)
 DROP_COLS = [
     'date',
+    TARGET_DATE_COL,
     # raw prices (non-stationary + same-day leakage)
     'oil_close', 'usd_close', 'sp500_close', 'vix_close', 'wti_fred',
     # redundant (|rho|>0.95 or derived duplicate)
@@ -33,14 +35,26 @@ DROP_COLS = [
 ]
 
 
+def get_train_test_masks(df):
+    """Split by target date when a forward target exists."""
+    split_col = TARGET_DATE_COL if TARGET_DATE_COL in df.columns else 'date'
+    split_values = pd.to_datetime(df[split_col])
+    train_mask = split_values < pd.Timestamp(SPLIT_DATE)
+    test_mask = split_values >= pd.Timestamp(SPLIT_DATE)
+    return train_mask, test_mask, split_col
+
+
 def load_data():
     """Load, split, scale. Returns dict with everything needed."""
     df = pd.read_csv(DATA_PATH, parse_dates=['date'])
+    if TARGET_DATE_COL in df.columns:
+        df[TARGET_DATE_COL] = pd.to_datetime(df[TARGET_DATE_COL])
     df.sort_values('date', inplace=True)
     df.reset_index(drop=True, inplace=True)
 
-    train = df[df['date'] < SPLIT_DATE].copy()
-    test  = df[df['date'] >= SPLIT_DATE].copy()
+    train_mask, test_mask, split_col = get_train_test_masks(df)
+    train = df[train_mask].copy()
+    test  = df[test_mask].copy()
 
     features = [c for c in df.columns if c not in DROP_COLS and c != TARGET]
 
@@ -59,6 +73,9 @@ def load_data():
     print(f'  {features}')
     print(f'  Train: {len(X_train)} ({dates_train.iloc[0].date()} -> {dates_train.iloc[-1].date()})')
     print(f'  Test:  {len(X_test)}  ({dates_test.iloc[0].date()} -> {dates_test.iloc[-1].date()})')
+    if split_col != 'date':
+        print(f'  Train targets: {train[split_col].iloc[0].date()} -> {train[split_col].iloc[-1].date()}')
+        print(f'  Test targets:  {test[split_col].iloc[0].date()} -> {test[split_col].iloc[-1].date()}')
 
     return {
         'X_train': X_train, 'X_test': X_test,

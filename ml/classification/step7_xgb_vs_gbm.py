@@ -10,7 +10,7 @@ Goal of this step:
   - Measure the tradeoff between stronger CV scores and actual test performance
 
 Target used in this file:
-  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+  - Binary classification: oil_return_fwd1 > 0 -> UP=1, otherwise DOWN=0
 
 Input features:
   - Base features plus no-leakage technical features from step 3
@@ -44,7 +44,7 @@ from sklearn.feature_selection import mutual_info_classif
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import RANDOM_STATE as RS, DATA_PATH, SPLIT_DATE, get_tscv
+from config import RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
@@ -57,20 +57,19 @@ def main():
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     df = add_technical_features(df)
 
-    exclude = {'date', 'oil_return', 'oil_close'}
+    exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
     all_features = [c for c in df.columns if c not in exclude]
 
-    train_mask = df['date'] < SPLIT_DATE
-    test_mask = df['date'] >= SPLIT_DATE
+    train_mask, test_mask, _ = get_train_test_masks(df)
 
     X_train_full = df.loc[train_mask, all_features]
-    y_train = (df.loc[train_mask, 'oil_return'] > 0).astype(int)
+    y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
     X_test_full = df.loc[test_mask, all_features]
-    y_test = (df.loc[test_mask, 'oil_return'] > 0).astype(int)
+    y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
     # TOP_50 selection
     mi = mutual_info_classif(X_train_full.fillna(0), y_train, random_state=RS, n_neighbors=5)
-    sp = X_train_full.corrwith(df.loc[train_mask, 'oil_return'], method='spearman').abs()
+    sp = X_train_full.corrwith(df.loc[train_mask, TARGET], method='spearman').abs()
     rank = pd.DataFrame({'feature': all_features, 'MI': mi, 'abs_sp': sp.values})
     for c in ['MI', 'abs_sp']:
         mx = rank[c].max()

@@ -32,6 +32,8 @@ PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 STEP3_FILE = PROCESSED_DIR / "dataset_step3_integrated.csv"
 OUTPUT_FILE = PROCESSED_DIR / "dataset_step4_transformed.csv"
+TARGET_COL = "oil_return_fwd1"
+TARGET_DATE_COL = "oil_return_fwd1_date"
 
 
 def load_integrated_data() -> pd.DataFrame:
@@ -205,7 +207,7 @@ def create_eia_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Fallback to expanding z-score for early periods
     exp_mean = df["crude_inventory_weekly"].expanding(min_periods=5).mean()
-    exp_std = df["crude_inventory_weekly"].expanding(min_periods=5).std(ddof=0).replace(0, pd.NA)
+    exp_std = df["crude_inventory_weekly"].expanding(min_periods=5).std(ddof=0).mask(lambda s: s == 0)
     exp_zscore = (df["crude_inventory_weekly"] - exp_mean) / exp_std
     df["inventory_zscore"] = df["inventory_zscore"].fillna(exp_zscore).fillna(0.0)
 
@@ -438,6 +440,30 @@ def final_cleanup(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ============================================================================
+# 4L: FORWARD TARGET (T+1)
+# ============================================================================
+
+def create_forward_target(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Tạo target forward 1 ngày để mô hình dùng features tại T dự đoán return của T+1.
+    """
+    print("\n⏳ 4L: Creating forward target (T+1)...")
+    df = df.copy()
+
+    df[TARGET_COL] = df["oil_return"].shift(-1)
+    df[TARGET_DATE_COL] = df["date"].shift(-1)
+
+    initial_len = len(df)
+    df = df.dropna(subset=[TARGET_COL, TARGET_DATE_COL]).reset_index(drop=True)
+    dropped = initial_len - len(df)
+    if dropped > 0:
+        print(f"   ✓ Dropped {dropped} rows without forward target")
+
+    print(f"   ✓ Forward target created: {TARGET_COL}")
+    return df
+
+
+# ============================================================================
 # MAIN TRANSFORMATION FLOW
 # ============================================================================
 
@@ -475,6 +501,9 @@ def main():
 
     # --- 4K: Final cleanup ---
     df = final_cleanup(df)
+
+    # --- 4L: Forward target ---
+    df = create_forward_target(df)
 
     # --- Save ---
     print(f"\n⏳ Saving output to {OUTPUT_FILE} ...")

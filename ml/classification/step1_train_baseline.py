@@ -11,7 +11,7 @@ Goal of this step:
   - Produce reference metrics before later improvement steps
 
 Target used in this file:
-  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+  - Binary classification: oil_return_fwd1 > 0 -> UP=1, otherwise DOWN=0
 
 Input features:
   - Base feature set loaded from config.load_data()
@@ -131,7 +131,7 @@ def main():
     tscv = get_tscv()
     models = get_models()
 
-    # Create binary target: 1 = UP (return > 0), 0 = DOWN (return <= 0)
+    # Create binary target: 1 = UP (next-day return > 0), 0 = DOWN (<= 0)
     y_train = (data['y_train'] > 0).astype(int)
     y_test  = (data['y_test'] > 0).astype(int)
 

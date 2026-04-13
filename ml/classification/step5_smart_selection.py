@@ -11,7 +11,7 @@ Goal of this step:
   - Compare clustered feature sets against naive top-N selection
 
 Target used in this file:
-  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+  - Binary classification: oil_return_fwd1 > 0 -> UP=1, otherwise DOWN=0
 
 Input features:
   - Base features plus no-leakage technical features from step 3
@@ -53,7 +53,7 @@ from sklearn.ensemble import GradientBoostingClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import load_data, get_tscv, RANDOM_STATE as RS, DATA_PATH, SPLIT_DATE
+from config import get_tscv, get_train_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
@@ -66,16 +66,15 @@ def main():
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     df = add_technical_features(df)
 
-    exclude = {'date', 'oil_return', 'oil_close'}
+    exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
     features = [c for c in df.columns if c not in exclude]
 
-    train_mask = df['date'] < SPLIT_DATE
-    test_mask = df['date'] >= SPLIT_DATE
+    train_mask, test_mask, _ = get_train_test_masks(df)
 
     X_train = df.loc[train_mask, features]
     X_test = df.loc[test_mask, features]
-    y_train = (df.loc[train_mask, 'oil_return'] > 0).astype(int)
-    y_test = (df.loc[test_mask, 'oil_return'] > 0).astype(int)
+    y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
+    y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
     print(f'  Features: {len(features)} | Train: {len(X_train)} | Test: {len(X_test)}')
 

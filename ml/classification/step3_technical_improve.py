@@ -1,8 +1,8 @@
 """
 STEP 3: Technical Improvement for Classification
 
-This script tries to improve the baseline direction-prediction task for oil returns.
-The main idea is to add short-term technical signals on top of the no-leakage dataset,
+This script tries to improve the baseline direction-prediction task for next-day oil returns.
+The main idea is to add short-term technical signals on top of the end-of-day dataset,
 while keeping all price-derived technical indicators shifted so the model only sees
 information available up to T-1.
 
@@ -13,14 +13,14 @@ What this script is trying to improve:
   4. Check whether filtering low-confidence predictions improves trade accuracy.
 
 Targets trained in this file:
-  - 1d_raw: classify whether oil_return > 0
+  - 1d_raw: classify whether oil_return_fwd1 > 0
   - 1d_t03: classify only moves above +0.3% or below -0.3%, skip near-zero days
   - 1d_t05: classify only moves above +0.5% or below -0.5%, skip near-zero days
 
 Feature changes in this file:
   - Add technical indicators such as MA, RSI, MACD, Bollinger, momentum, rolling stats
   - Shift technical indicators by 1 day to avoid leakage
-  - Use the no-leakage dataset produced in the process pipeline
+  - Use the end-of-day T dataset produced in the process pipeline
   - Shift technical indicators by 1 day
 
 Models trained in this file:
@@ -53,7 +53,7 @@ from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, classificat
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import load_data, get_tscv, RANDOM_STATE as RS, DATA_PATH, SPLIT_DATE, TARGET, DROP_COLS
+from config import get_tscv, get_train_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL
 
 P = '=' * 90
 
@@ -72,7 +72,7 @@ def add_technical_features(df):
     ret = df['oil_return'].copy()
 
     # ============================================================
-    # The base dataset is already no-leak for same-day market features.
+    # The base dataset now predicts T+1 from end-of-day T features.
     # We still shift all technical indicators by 1 day so they only use info up to T-1.
     # ============================================================
 
@@ -159,7 +159,7 @@ def add_technical_features(df):
 # ============================================================================
 def build_targets(df):
     """Build multiple target definitions for the experiments."""
-    ret = df['oil_return'].copy()
+    ret = df[TARGET].copy()
 
     # Load oil_close if it is no longer present
     if 'oil_close' in df.columns:
@@ -170,7 +170,7 @@ def build_targets(df):
 
     targets = {}
 
-    # 1. Standard: return > 0
+    # 1. Standard: next-day return > 0
     targets['1d_raw'] = (ret > 0).astype(int)
 
     # 2. Threshold: |return| > 0.3% (drop near-zero noise)
@@ -250,11 +250,10 @@ def main():
         print(f'    {k}: UP={int((valid==1).sum())} DOWN={int((valid==0).sum())} Skip={int((v==-1).sum())} ({len(valid)} usable)')
 
     # Train/test split
-    train_mask = df['date'] < SPLIT_DATE
-    test_mask = df['date'] >= SPLIT_DATE
+    train_mask, test_mask, _ = get_train_test_masks(df)
 
     # Features = everything except date, target, and raw oil price
-    exclude = {'date', 'oil_return', 'oil_close'}
+    exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
     features = [c for c in df.columns if c not in exclude]
     print(f'\n    Features: {len(features)}')
 

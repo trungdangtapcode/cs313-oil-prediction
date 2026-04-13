@@ -59,7 +59,7 @@ def create_eia_features(df: pd.DataFrame) -> pd.DataFrame:
 
     # Với giai đoạn warmup đầu chuỗi, dùng expanding z-score để giữ timeline.
     exp_mean = df["crude_inventory_weekly"].expanding(min_periods=5).mean()
-    exp_std = df["crude_inventory_weekly"].expanding(min_periods=5).std(ddof=0).replace(0, pd.NA)
+    exp_std = df["crude_inventory_weekly"].expanding(min_periods=5).std(ddof=0).mask(lambda s: s == 0)
     exp_zscore = (df["crude_inventory_weekly"] - exp_mean) / exp_std
     df["inventory_zscore"] = df["inventory_zscore"].fillna(exp_zscore).fillna(0.0)
 
