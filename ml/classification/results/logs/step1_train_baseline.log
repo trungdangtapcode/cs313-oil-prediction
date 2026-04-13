@@ -18,7 +18,7 @@
   F1 (macro):  0.4343
   AUC:         0.5068
   Confusion:   TP=344 FP=351 TN=71 FN=74
-  Time:        51.9s
+  Time:        33.8s
 
 --- SVM_RBF ---
   Best params: {'C': 10.0, 'gamma': 'auto', 'kernel': 'rbf'}
@@ -28,7 +28,7 @@
   F1 (macro):  0.4712
   AUC:         0.4770
   Confusion:   TP=246 FP=267 TN=155 FN=172
-  Time:        46.3s
+  Time:        35.4s
 
 --- SVM_Linear ---
   Best params: {'C': 10.0}
@@ -38,7 +38,7 @@
   F1 (macro):  0.4664
   AUC:         0.5102
   Confusion:   TP=313 FP=316 TN=106 FN=105
-  Time:        92.0s
+  Time:        98.3s
 
 --- RandomForest ---
   Best params: {'max_depth': 15, 'min_samples_leaf': 5, 'n_estimators': 300}
@@ -48,6 +48,6 @@
   F1 (macro):  0.4510
   AUC:         0.5376
   Confusion:   TP=76 FP=69 TN=353 FN=342
-  Time:        182.9s
+  Time:        250.4s
 
 --- GradientBoosting ---
