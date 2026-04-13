@@ -59,12 +59,16 @@ from config import get_tscv, get_train_val_test_masks, RANDOM_STATE as RS, DATA_
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
+CPU_COUNT = os.cpu_count() or 1
+SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
+MODEL_N_JOBS = max(1, int(os.getenv('MODEL_N_JOBS', str(min(12, max(1, CPU_COUNT // 4))))))
 
 
 def main():
     seed = set_global_seed()
-    print(f'\n{P}\n STEP 6: SMART FEATURE SELECTION\n{P}')
+    print(f'\n{P}\n STEP 5: SMART FEATURE SELECTION\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Parallelism: search_jobs={SEARCH_N_JOBS} | model_jobs={MODEL_N_JOBS}')
 
     # Load + technicals (shifted)
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
@@ -134,14 +138,14 @@ def main():
     print(f'\n{P}\n B) PERMUTATION IMPORTANCE\n{P}')
 
     # Train a quick model to compute permutation importance
-    base_model = LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=1,
+    base_model = LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS,
                                  n_estimators=300, max_depth=5, learning_rate=0.05)
     base_model.fit(X_train, y_train)
 
     print('  Computing permutation importance (5 repeats)...')
     t0 = time.time()
     perm = permutation_importance(base_model, X_val, y_val,
-                                  n_repeats=5, random_state=RS, n_jobs=1,
+                                  n_repeats=5, random_state=RS, n_jobs=SEARCH_N_JOBS,
                                   scoring='accuracy')
     print(f'  Done ({time.time()-t0:.1f}s)')
 
@@ -206,9 +210,9 @@ def main():
     for set_name, feats in sets.items():
         row = {'Set': set_name, 'N': len(feats)}
         for mname, model in [
-            ('LGBM', LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=1,
+            ('LGBM', LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS,
                                      n_estimators=300, max_depth=5, learning_rate=0.05)),
-            ('XGB', XGBClassifier(random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss',
+            ('XGB', XGBClassifier(random_state=RS, verbosity=0, n_jobs=MODEL_N_JOBS, eval_metric='logloss',
                                    n_estimators=300, max_depth=5, learning_rate=0.05)),
             ('GBM', GradientBoostingClassifier(random_state=RS,
                                                 n_estimators=300, max_depth=5, learning_rate=0.05)),
@@ -249,7 +253,7 @@ def main():
         print(f'\n--- {name} ---')
         t0 = time.time()
         gs = RandomizedSearchCV(model, grid, n_iter=15, cv=tscv,
-                                scoring='accuracy', refit=True, n_jobs=1, random_state=RS)
+                                scoring='accuracy', refit=True, n_jobs=SEARCH_N_JOBS, random_state=RS)
         gs.fit(X_train[best_feats], y_train)
         pred = gs.best_estimator_.predict(X_val[best_feats])
         prob = gs.best_estimator_.predict_proba(X_val[best_feats])[:, 1]
@@ -298,7 +302,7 @@ def main():
     print(f'   Baseline (42 features, no technicals):   Acc=0.5274')
     print(f'   Step4 (81 features, no selection):        Acc=0.5530')
     print(f'   Step5 (naive MI+Spearman selection):      Acc=0.5619')
-    print(f'   Step6 (cluster+perm selection, val):       Acc={best["Val_Accuracy"]:.4f}')
+    print(f'   Step5 (cluster+perm selection, val):       Acc={best["Val_Accuracy"]:.4f}')
 
     # Save
     selected_df = pd.DataFrame({'feature': best_feats})

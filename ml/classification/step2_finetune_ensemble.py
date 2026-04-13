@@ -69,6 +69,9 @@ from config import (
 
 OUT = os.path.join(os.path.dirname(__file__), 'results')
 P = '=' * 90
+CPU_COUNT = os.cpu_count() or 1
+SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
+MODEL_N_JOBS = max(1, int(os.getenv('MODEL_N_JOBS', str(min(12, max(1, CPU_COUNT // 4))))))
 
 
 def _iloc_frame(X, idx):
@@ -175,6 +178,7 @@ def main():
     seed = set_global_seed()
     print(f'\n{P}\n CLASSIFICATION FINE-TUNE + ENSEMBLE\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Parallelism: search_jobs={SEARCH_N_JOBS} | model_jobs={MODEL_N_JOBS}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     train_mask, val_mask, test_mask, split_col = get_train_val_test_masks(df)
@@ -253,7 +257,7 @@ def main():
             cv=tscv,
             scoring='accuracy',
             refit=True,
-            n_jobs=1,
+            n_jobs=SEARCH_N_JOBS,
             random_state=RS,
         )
         gs.fit(Xtr, y_train)
@@ -276,12 +280,12 @@ def main():
         print(f'  CV={gs.best_score_:.4f} | Val Acc={metrics["Accuracy"]:.4f} F1m={metrics["F1m"]:.4f} AUC={metrics["AUC"]:.4f}')
 
     base = [
-        ('lgbm', LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=1, n_estimators=100, max_depth=3, learning_rate=0.05)),
-        ('xgb', XGBClassifier(random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss', n_estimators=100, max_depth=3, learning_rate=0.05)),
+        ('lgbm', LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS, n_estimators=100, max_depth=3, learning_rate=0.05)),
+        ('xgb', XGBClassifier(random_state=RS, verbosity=0, n_jobs=MODEL_N_JOBS, eval_metric='logloss', n_estimators=100, max_depth=3, learning_rate=0.05)),
         ('gbm', GradientBoostingClassifier(random_state=RS, n_estimators=100, max_depth=3, learning_rate=0.05)),
     ]
     ensembles = [
-        ('Voting', VotingClassifier(estimators=base, voting='soft', n_jobs=1), False),
+        ('Voting', VotingClassifier(estimators=base, voting='soft', n_jobs=SEARCH_N_JOBS), False),
         ('Stacking', TimeSeriesStackingClassifier(
             estimators=base,
             final_estimator=LogisticRegression(random_state=RS, max_iter=1000),
