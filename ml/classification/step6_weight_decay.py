@@ -1,6 +1,39 @@
-﻿"""
-STEP 7: Sample Weight Decay - data gáº§n hÆ¡n quan trá»ng hÆ¡n
-Usage: python ml/step7_weight_decay.py
+"""
+STEP 6: Weight Decay Experiment
+
+This step tests whether more recent training samples should receive
+higher weight than older samples, under the assumption that market
+regimes may drift over time.
+
+Goal of this step:
+  - Compare uniform training against recency-weighted training
+  - Evaluate several weighting schemes such as exponential, linear, and step decay
+  - Check whether reweighting helps the best subset from earlier steps
+
+Target used in this file:
+  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+
+Input features:
+  - Base features plus no-leakage technical features from step 3
+  - A TOP_50 subset is rebuilt inside this script using MI + Spearman ranking
+
+Models trained in this file:
+  - GradientBoostingClassifier
+  - XGBClassifier
+  - LGBMClassifier
+
+Method used in this file:
+  - Train the same model under multiple sample-weight schemes
+  - Compare best accuracy under uniform and decay-weighted training
+
+Outputs:
+  - Console comparison across all weight schemes
+  - results/step7_results.csv
+  - results/step7_weight_schemes.png
+  - results/step7_comparison.png
+
+Usage:
+  python ml/classification/step6_weight_decay.py
 """
 import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -16,30 +49,30 @@ from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
 from config import RANDOM_STATE as RS, DATA_PATH, SPLIT_DATE
-from improve import add_technical_features
+from step3_technical_improve import add_technical_features
 
 P = '=' * 90
 
 
 def exponential_weights(n, half_life):
     """
-    Táº¡o weights exponential decay.
-    half_life: sá»‘ sample mÃ  weight giáº£m cÃ²n 50%.
-    Sample cuá»‘i cÃ¹ng (gáº§n nháº¥t) cÃ³ weight = 1.0.
+    Create exponential decay weights.
+    half_life: number of samples needed for weight to decay to 50%.
+    The most recent sample has weight = 1.0.
     """
     decay = np.log(2) / half_life
     t = np.arange(n)
-    w = np.exp(-decay * (n - 1 - t))  # t=0 xa nháº¥t, t=n-1 gáº§n nháº¥t
+    w = np.exp(-decay * (n - 1 - t))  # t=0 oldest, t=n-1 most recent
     return w
 
 
 def linear_weights(n, min_weight=0.1):
-    """Weight tÄƒng tuyáº¿n tÃ­nh tá»« min_weight Ä‘áº¿n 1.0"""
+    """Linearly increase weights from min_weight to 1.0."""
     return np.linspace(min_weight, 1.0, n)
 
 
 def step_weights(n, recent_ratio=0.5, recent_weight=2.0):
-    """Chia 2 giai Ä‘oáº¡n: cÅ© weight=1, gáº§n weight=recent_weight"""
+    """Two-stage weights: old=1, recent=recent_weight."""
     w = np.ones(n)
     cutoff = int(n * (1 - recent_ratio))
     w[cutoff:] = recent_weight
@@ -63,7 +96,7 @@ def main():
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     df = add_technical_features(df)
 
-    # DÃ¹ng TOP_50 features (best tá»« step5)
+    # Use TOP_50 features (best set from step5)
     from sklearn.feature_selection import mutual_info_classif
 
     exclude = {'date', 'oil_return', 'oil_close'}
@@ -77,7 +110,7 @@ def main():
     y_train = (df.loc[train_mask, 'oil_return'] > 0).astype(int)
     y_test = (df.loc[test_mask, 'oil_return'] > 0).astype(int)
 
-    # Feature ranking (MI + Spearman) â†’ TOP_50
+    # Feature ranking (MI + Spearman) -> TOP_50
     mi = mutual_info_classif(X_train_full.fillna(0), y_train, random_state=RS, n_neighbors=5)
     sp = X_train_full.corrwith(df.loc[train_mask, 'oil_return'], method='spearman').abs()
     rank = pd.DataFrame({'feature': all_features, 'MI': mi, 'abs_sp': sp.values})
@@ -95,9 +128,9 @@ def main():
     print(f'  Features: {len(top50)} (TOP_50)')
     print(f'  Train: {n_train} | Test: {len(X_test)}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # A) VISUALIZE WEIGHT SCHEMES
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n A) WEIGHT SCHEMES\n{P}')
 
     schemes = {
@@ -130,19 +163,19 @@ def main():
     for name, w in schemes.items():
         print(f'  {name:<20} min={w.min():.4f} max={w.max():.4f} mean={w.mean():.4f}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # B) TRAIN WITH EACH WEIGHT SCHEME
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n B) TRAIN ALL COMBINATIONS\n{P}')
 
     model_configs = {
         'GBM': lambda: GradientBoostingClassifier(
             random_state=RS, n_estimators=300, max_depth=5, learning_rate=0.03, min_samples_leaf=5),
         'XGB': lambda: XGBClassifier(
-            random_state=RS, verbosity=0, n_jobs=2, eval_metric='logloss',
+            random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss',
             n_estimators=300, max_depth=5, learning_rate=0.03),
         'LGBM': lambda: LGBMClassifier(
-            random_state=RS, verbosity=-1, n_jobs=2, importance_type='gain',
+            random_state=RS, verbosity=-1, n_jobs=1, importance_type='gain',
             n_estimators=300, max_depth=5, learning_rate=0.03),
     }
 
@@ -158,9 +191,9 @@ def main():
             results.append(res)
             print(f' {scheme_name:<22} {mname:<6} {res["Accuracy"]:>10.4f} {res["F1_macro"]:>10.4f} {res["AUC"]:>8.4f}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # C) SUMMARY
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n C) SUMMARY\n{P}')
 
     rdf = pd.DataFrame(results).sort_values('Accuracy', ascending=False)
@@ -207,4 +240,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

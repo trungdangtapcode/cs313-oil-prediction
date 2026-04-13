@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import TimeSeriesSplit
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-DATA_PATH = os.path.join(ROOT, 'data', 'processed', 'dataset_step4_transformed.csv')
+DATA_PATH = os.path.join(ROOT, 'data', 'processed', 'dataset_step4_noleak.csv')
 OUT_DIR = os.path.join(ROOT, 'ml', 'results')
 os.makedirs(OUT_DIR, exist_ok=True)
 

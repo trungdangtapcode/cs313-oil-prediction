@@ -20,13 +20,12 @@ for f in os.listdir(folder):
         content = content.replace(", OUT_DIR", "")
         content = content.replace("OUT_DIR", "os.path.join(os.path.dirname(__file__), 'results')")
 
-    # Fix step4_improve import (for scripts that import add_technical_features)
+    # Fix legacy imports for the technical feature helper
     content = content.replace(
         "from step4_improve import",
-        "from improve import"
+        "from step3_technical_improve import"
     )
 
     with open(path, 'w', encoding='utf-8') as fh:
         fh.write(content)
     print(f'Fixed: {f}')
-

@@ -1,6 +1,41 @@
-﻿"""
-STEP 5: Feature Selection trÃªn 81 features (gá»‘c + technicals shifted) rá»“i train láº¡i
-Usage: python ml/step5_select_and_train.py
+"""
+STEP 4: Feature Selection and Retraining
+
+This step starts from the technical-feature dataset created in step 3
+and asks a practical question: if we rank the 81 features and keep only
+the strongest ones, does test accuracy improve?
+
+Goal of this step:
+  - Rank the 81-feature set using mutual information and Spearman signal
+  - Compare multiple feature-subset sizes such as TOP_10, TOP_25, TOP_50, ALL_81
+  - Retrain several models on the best-performing subset
+
+Target used in this file:
+  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+
+Input features:
+  - Base features from dataset_step4_noleak.csv
+  - Technical and lag features added by step3_technical_improve.add_technical_features()
+  - Final candidate set is the no-leakage 81-feature dataset
+
+Models trained in this file:
+  - XGBClassifier
+  - GradientBoostingClassifier
+  - LGBMClassifier
+  - LGBMClassifier is also used as a proxy model for subset comparison
+
+Model selection:
+  - Feature ranking with mutual information + absolute Spearman correlation
+  - Cross-validation subset comparison with TimeSeriesSplit
+  - RandomizedSearchCV for the final retraining stage
+
+Outputs:
+  - Console ranking and subset comparison
+  - results/step5_feature_ranking.csv
+  - results/step5_results.csv
+
+Usage:
+  python ml/classification/step4_select_and_train.py
 """
 import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -17,7 +52,7 @@ from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
 from config import load_data, get_tscv, RANDOM_STATE as RS, DATA_PATH, SPLIT_DATE
-from improve import add_technical_features
+from step3_technical_improve import add_technical_features
 
 P = '=' * 90
 
@@ -46,9 +81,9 @@ def main():
     print(f'  Train: {len(X_train)} | Test: {len(X_test)}')
     print(f'  Target: UP={y_train.sum()} ({y_train.mean():.1%}) | DOWN={len(y_train)-y_train.sum()}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # 1. FEATURE RANKING (MI + Spearman)
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n 1. FEATURE RANKING\n{P}')
     tscv = get_tscv()
 
@@ -70,9 +105,9 @@ def main():
 
     rank.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_feature_ranking.csv'), index=False)
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # 2. COMPARE SUBSETS
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n 2. SUBSET COMPARISON (LGBM proxy)\n{P}')
 
     subsets = {}
@@ -82,7 +117,7 @@ def main():
         else:
             subsets[f'TOP_{n}'] = rank.head(n)['feature'].tolist()
 
-    proxy = LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=2,
+    proxy = LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=1,
                            n_estimators=200, max_depth=5, learning_rate=0.05)
 
     print(f'\n {"Subset":<15} {"N":>4} {"CV_Acc":>8} {"Test_Acc":>10} {"Test_F1m":>10}')
@@ -101,22 +136,22 @@ def main():
     print(f'\n Best subset: {best_subset} (Acc={best_acc:.4f})')
     best_feats = subsets[best_subset]
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # 3. TRAIN TOP MODELS ON BEST SUBSET
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n 3. TRAIN ON {best_subset} ({len(best_feats)} features)\n{P}')
 
     X_tr = X_train[best_feats]
     X_te = X_test[best_feats]
 
     models = {
-        'XGB': (XGBClassifier(random_state=RS, verbosity=0, n_jobs=2, eval_metric='logloss'),
+        'XGB': (XGBClassifier(random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss'),
                 {'n_estimators': [200, 300, 500], 'max_depth': [3, 5, 7],
                  'learning_rate': [0.01, 0.03, 0.05], 'reg_alpha': [0, 0.1]}),
         'GBM': (GradientBoostingClassifier(random_state=RS),
                 {'n_estimators': [200, 300, 500], 'max_depth': [3, 5, 7],
                  'learning_rate': [0.01, 0.03, 0.05], 'min_samples_leaf': [5, 10]}),
-        'LGBM': (LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=2, importance_type='gain'),
+        'LGBM': (LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=1, importance_type='gain'),
                  {'n_estimators': [200, 300, 500], 'max_depth': [3, 5, 7],
                   'learning_rate': [0.01, 0.03, 0.05], 'num_leaves': [15, 31]}),
     }
@@ -126,7 +161,7 @@ def main():
         print(f'\n--- {name} ---')
         t0 = time.time()
         gs = RandomizedSearchCV(model, grid, n_iter=15, cv=tscv,
-                                scoring='accuracy', refit=True, n_jobs=2, random_state=RS)
+                                scoring='accuracy', refit=True, n_jobs=1, random_state=RS)
         gs.fit(X_tr, y_train)
         pred = gs.best_estimator_.predict(X_te)
         prob = gs.best_estimator_.predict_proba(X_te)[:, 1]
@@ -141,9 +176,9 @@ def main():
         print(f'  Best: {gs.best_params_}')
         print(f'  CV_Acc={gs.best_score_:.4f} | Test: Acc={acc:.4f} F1m={f1m:.4f} AUC={auc:.4f} ({elapsed}s)')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # 4. ALSO TRAIN ON ALL SUBSETS WITH BEST MODEL
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n 4. BEST MODEL (GBM) ON ALL SUBSETS\n{P}')
 
     all_sub_results = []
@@ -157,9 +192,9 @@ def main():
         all_sub_results.append({'Subset': name, 'N': len(feats), 'Accuracy': acc, 'F1_macro': f1m})
         print(f'  {name:<15} (n={len(feats):>2}) Acc={acc:.4f} F1m={f1m:.4f}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # SUMMARY
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n SUMMARY\n{P}')
     rdf = pd.DataFrame(results).sort_values('Accuracy', ascending=False)
     rdf.index = range(1, len(rdf) + 1)
@@ -184,4 +219,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

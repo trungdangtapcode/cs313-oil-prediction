@@ -1,10 +1,44 @@
-﻿"""
-STEP 4: Improve Classification Accuracy
-  A) Threshold target - bá» noise gáº§n 0
-  B) Technical indicators - RSI, MACD, Bollinger, MA
-  C) Multi-horizon - 1d, 3d, 5d
-  D) Probability filtering - chá»‰ trade khi confident
-Usage: python ml/step4_improve.py
+"""
+STEP 3: Technical Improvement for Classification
+
+This script tries to improve the baseline direction-prediction task for oil returns.
+The main idea is to add short-term technical signals on top of the no-leakage dataset,
+while keeping all price-derived technical indicators shifted so the model only sees
+information available up to T-1.
+
+What this script is trying to improve:
+  1. Reduce label noise by testing threshold-based targets.
+  2. Add technical indicators that may capture short-term momentum or mean reversion.
+  3. Compare a few target definitions for the same 1-day direction problem.
+  4. Check whether filtering low-confidence predictions improves trade accuracy.
+
+Targets trained in this file:
+  - 1d_raw: classify whether oil_return > 0
+  - 1d_t03: classify only moves above +0.3% or below -0.3%, skip near-zero days
+  - 1d_t05: classify only moves above +0.5% or below -0.5%, skip near-zero days
+
+Feature changes in this file:
+  - Add technical indicators such as MA, RSI, MACD, Bollinger, momentum, rolling stats
+  - Shift technical indicators by 1 day to avoid leakage
+  - Use the no-leakage dataset produced in the process pipeline
+  - Shift technical indicators by 1 day
+
+Models trained in this file:
+  - XGBClassifier
+  - GradientBoostingClassifier
+  - LGBMClassifier
+
+Model selection:
+  - Each model is tuned with RandomizedSearchCV
+  - TimeSeriesSplit is used for time-aware cross-validation
+  - Results are evaluated with Accuracy, F1_macro, and AUC
+
+Outputs:
+  - Console summary of all target/model combinations
+  - results/improved_classification.csv
+
+Usage:
+  python ml/classification/step3_technical_improve.py
 """
 import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -23,13 +57,13 @@ from config import load_data, get_tscv, RANDOM_STATE as RS, DATA_PATH, SPLIT_DAT
 
 P = '=' * 90
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ============================================================================
 # A) ADD TECHNICAL INDICATORS
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ============================================================================
 def add_technical_features(df):
-    """ThÃªm technical indicators tá»« oil_close cÃ³ sáºµn trong dataset gá»‘c."""
+    """Add technical indicators derived from oil_close in the base dataset."""
 
-    # oil_close Ä‘Ã£ cÃ³ trong df (dataset_step4 cÃ³ 54 cá»™t bao gá»“m oil_close)
+    # dataset_step4 already contains oil_close in most cases
     if 'oil_close' not in df.columns:
         raw = pd.read_csv(DATA_PATH, parse_dates=['date'])[['date', 'oil_close']].sort_values('date').reset_index(drop=True)
         df = df.merge(raw, on='date', how='left')
@@ -38,8 +72,8 @@ def add_technical_features(df):
     ret = df['oil_return'].copy()
 
     # ============================================================
-    # Táº¤T Cáº¢ technical indicators Ä‘Æ°á»£c SHIFT(1) Ä‘á»ƒ trÃ¡nh leakage
-    # TÃ­nh trÃªn price/ret gá»‘c, sau Ä‘Ã³ shift(1) â†’ chá»‰ dÃ¹ng info Ä‘áº¿n T-1
+    # The base dataset is already no-leak for same-day market features.
+    # We still shift all technical indicators by 1 day so they only use info up to T-1.
     # ============================================================
 
     # --- Moving Averages (shift 1) ---
@@ -57,7 +91,7 @@ def add_technical_features(df):
     df['ma_10_20_cross'] = (ma10_raw > ma20_raw).astype(int)
     df['ma_20_50_cross'] = (ma20_raw > ma50_raw).astype(int)
 
-    # Price T-1 vs MA (shift 1 cáº£ price láº«n MA)
+    # Price at T-1 versus moving averages
     price_prev = price.shift(1)
     df['price_vs_ma20'] = (price_prev - ma20_raw) / (ma20_raw + 1e-10)
     df['price_vs_ma50'] = (price_prev - ma50_raw) / (ma50_raw + 1e-10)
@@ -104,30 +138,30 @@ def add_technical_features(df):
     if 'gdelt_volume_7d' in df.columns:
         df['gdelt_vol_momentum'] = df['gdelt_volume_7d'].pct_change(5).shift(1)
 
-    # --- Lag thÃªm (Ä‘Ã£ shift sáºµn) ---
+    # --- Extra lag features ---
     df['oil_return_lag3'] = ret.shift(3)
     df['oil_return_lag5'] = ret.shift(5)
     df['sp500_return_lag1'] = df['sp500_return'].shift(1) if 'sp500_return' in df.columns else 0
     df['vix_return_lag1'] = df['vix_return'].shift(1) if 'vix_return' in df.columns else 0
 
-    # Drop oil_close (Ä‘Ã£ dÃ¹ng xong)
+    # Drop oil_close after feature construction
     df.drop(columns=['oil_close'], inplace=True, errors='ignore')
 
-    # Drop NaN rows tá»« rolling + shift
+    # Drop rows made invalid by rolling windows and shifts
     df.dropna(inplace=True)
     df.reset_index(drop=True, inplace=True)
 
     return df
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ============================================================================
 # B) BUILD TARGETS (threshold + multi-horizon)
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ============================================================================
 def build_targets(df):
-    """Táº¡o nhiá»u loáº¡i target khÃ¡c nhau."""
+    """Build multiple target definitions for the experiments."""
     ret = df['oil_return'].copy()
 
-    # Láº¥y oil_close tá»« df hoáº·c Ä‘á»c láº¡i
+    # Load oil_close if it is no longer present
     if 'oil_close' in df.columns:
         price = df['oil_close'].copy()
     else:
@@ -139,40 +173,40 @@ def build_targets(df):
     # 1. Standard: return > 0
     targets['1d_raw'] = (ret > 0).astype(int)
 
-    # 2. Threshold: |return| > 0.3%  (bá» noise)
+    # 2. Threshold: |return| > 0.3% (drop near-zero noise)
     targets['1d_t03'] = ret.apply(lambda x: 1 if x > 0.003 else (0 if x < -0.003 else -1)).astype(int)
 
     # 3. Threshold: |return| > 0.5%
     targets['1d_t05'] = ret.apply(lambda x: 1 if x > 0.005 else (0 if x < -0.005 else -1)).astype(int)
 
-    # 4. 3-day forward return (SKIP - quÃ¡ cháº­m vÃ  ~50% accuracy)
+    # 4. 3-day forward return (skip - too slow and near 50% accuracy)
     # 5. 5-day forward return (SKIP)
     # 6. 3-day with threshold (SKIP)
 
     return targets
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ============================================================================
 # C) TRAIN & EVALUATE
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ============================================================================
 def train_and_eval(X_train, X_test, y_train, y_test, target_name):
     """Train 3 models, return best results."""
     tscv = get_tscv()
 
     models = {
-        'XGB': (XGBClassifier(random_state=RS, verbosity=0, n_jobs=2, eval_metric='logloss'),
+        'XGB': (XGBClassifier(random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss'),
                 {'n_estimators': [200, 300], 'max_depth': [3, 5], 'learning_rate': [0.01, 0.05]}),
         'GBM': (GradientBoostingClassifier(random_state=RS),
                 {'n_estimators': [200, 300], 'max_depth': [3, 5], 'learning_rate': [0.01, 0.05],
                  'min_samples_leaf': [5, 10]}),
-        'LGBM': (LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=2, importance_type='gain'),
+        'LGBM': (LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=1, importance_type='gain'),
                  {'n_estimators': [200, 300], 'max_depth': [3, 5], 'learning_rate': [0.01, 0.05]}),
     }
 
     results = []
     for name, (model, grid) in models.items():
         gs = RandomizedSearchCV(model, grid, n_iter=10, cv=tscv,
-                                scoring='accuracy', refit=True, n_jobs=2, random_state=RS)
+                                scoring='accuracy', refit=True, n_jobs=1, random_state=RS)
         gs.fit(X_train, y_train)
         pred = gs.best_estimator_.predict(X_test)
         prob = gs.best_estimator_.predict_proba(X_test) if hasattr(gs.best_estimator_, 'predict_proba') else None
@@ -194,9 +228,9 @@ def train_and_eval(X_train, X_test, y_train, y_test, target_name):
     return results
 
 
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ============================================================================
 # MAIN
-# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# ============================================================================
 def main():
     print(f'\n{P}\n STEP 4: IMPROVE CLASSIFICATION\n{P}')
 
@@ -219,7 +253,7 @@ def main():
     train_mask = df['date'] < SPLIT_DATE
     test_mask = df['date'] >= SPLIT_DATE
 
-    # Features = táº¥t cáº£ trá»« date, target, oil_close (raw price)
+    # Features = everything except date, target, and raw oil price
     exclude = {'date', 'oil_return', 'oil_close'}
     features = [c for c in df.columns if c not in exclude]
     print(f'\n    Features: {len(features)}')
@@ -227,9 +261,9 @@ def main():
     X_train_full = df.loc[train_mask, features]
     X_test_full = df.loc[test_mask, features]
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # C) TRAIN ON EACH TARGET
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n C) TRAINING ON EACH TARGET\n{P}')
 
     all_results = []
@@ -269,16 +303,16 @@ def main():
             print(f'    {r["Model"]:<6} Acc={r["Accuracy"]:.4f} F1m={r["F1_macro"]:.4f} AUC={r["AUC"]:.4f} (CV={r["CV_Acc"]:.4f})')
             all_results.append({k: v for k, v in r.items() if k not in ['pred', 'prob']})
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # D) PROBABILITY FILTERING
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n D) PROBABILITY FILTERING (best model, 1d_raw target)\n{P}')
 
     y_tr_raw = targets['1d_raw'][train_mask]
     y_te_raw = targets['1d_raw'][test_mask]
     valid_tr = y_tr_raw.notna(); valid_te = y_te_raw.notna()
 
-    best_model = XGBClassifier(random_state=RS, verbosity=0, n_jobs=-1, eval_metric='logloss',
+    best_model = XGBClassifier(random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss',
                                 n_estimators=500, max_depth=5, learning_rate=0.01)
     best_model.fit(X_train_full[valid_tr.values], y_tr_raw[valid_tr.values].astype(int))
     probs = best_model.predict_proba(X_test_full[valid_te.values])[:, 1]
@@ -297,9 +331,9 @@ def main():
         acc_all = accuracy_score(y_true, pred_all)
         print(f' {thresh:<12.2f} {int(confident.sum()):>10} {acc_all:>8.4f} {acc_filt:>12.4f} {coverage:>10.1%}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # SUMMARY
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n SUMMARY\n{P}')
     rdf = pd.DataFrame(all_results).sort_values('Accuracy', ascending=False)
     rdf.index = range(1, len(rdf) + 1)
@@ -324,4 +358,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

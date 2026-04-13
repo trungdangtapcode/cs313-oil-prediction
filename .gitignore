@@ -1,2 +1,5 @@
 .claude
 echo
+__pycache__/
+__pycache__
+.venv/

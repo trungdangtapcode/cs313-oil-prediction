@@ -1,7 +1,46 @@
-﻿"""
-CLASSIFICATION - Predict oil price direction (UP=1 / DOWN=0)
-Models: LogReg, SVM, RF, GBM, XGBoost, LightGBM, MLP
-Usage: python ml/train_classification.py
+"""
+STEP 1: Baseline Classification
+
+This is the baseline classification benchmark for the project.
+It trains a standard set of classifiers on the original feature set
+without adding technical indicators or extra feature-selection logic.
+
+Goal of this step:
+  - Establish a clean baseline for predicting daily oil direction
+  - Compare common model families on the same train/test split
+  - Produce reference metrics before later improvement steps
+
+Target used in this file:
+  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+
+Input features:
+  - Base feature set loaded from config.load_data()
+  - Raw same-day price columns and some leakage-prone columns are already dropped in config
+  - This step uses the baseline feature list from config, not the 81-feature technical set
+
+Models trained in this file:
+  - LogisticRegression
+  - SVC (linear)
+  - SVC (RBF)
+  - RandomForestClassifier
+  - GradientBoostingClassifier
+  - XGBClassifier
+  - LGBMClassifier
+  - MLPClassifier
+
+Model selection:
+  - Each model is tuned with GridSearchCV
+  - TimeSeriesSplit is used for time-aware cross-validation
+  - Results are evaluated with Accuracy, F1, F1_macro, AUC, and confusion-matrix stats
+
+Outputs:
+  - Console summary table
+  - results/classification_results.csv
+  - results/classification_feature_importance.csv
+  - plots such as ROC, confusion matrix, backtest, and feature importance
+
+Usage:
+  python ml/classification/step1_train_baseline.py
 """
 import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -24,8 +63,6 @@ from config import load_data, get_tscv, RANDOM_STATE
 
 P = '=' * 90
 
-
-# â”€â”€ Metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def evaluate(name, y_true, y_pred, y_prob=None):
     acc = accuracy_score(y_true, y_pred)
     f1  = f1_score(y_true, y_pred, average='binary')
@@ -58,7 +95,7 @@ def get_models():
         ('SVM_Linear', SVC(random_state=RANDOM_STATE, probability=True, kernel='linear'), {
             'C': [0.01, 0.1, 1.0, 10.0],
         }, True),
-        ('RandomForest', RandomForestClassifier(random_state=RANDOM_STATE, n_jobs=-1), {
+        ('RandomForest', RandomForestClassifier(random_state=RANDOM_STATE, n_jobs=1), {
             'n_estimators': [100, 300],
             'max_depth': [5, 10, 15],
             'min_samples_leaf': [3, 5, 10]
@@ -68,13 +105,13 @@ def get_models():
             'max_depth': [3, 5, 7],
             'learning_rate': [0.01, 0.05, 0.1]
         }, False),
-        ('XGBoost', XGBClassifier(random_state=RANDOM_STATE, verbosity=0, n_jobs=-1, eval_metric='logloss'), {
+        ('XGBoost', XGBClassifier(random_state=RANDOM_STATE, verbosity=0, n_jobs=1, eval_metric='logloss'), {
             'n_estimators': [100, 300],
             'max_depth': [3, 5, 7],
             'learning_rate': [0.01, 0.05, 0.1],
             'reg_alpha': [0, 0.1]
         }, False),
-        ('LightGBM', LGBMClassifier(random_state=RANDOM_STATE, verbosity=-1, n_jobs=-1, importance_type='gain'), {
+        ('LightGBM', LGBMClassifier(random_state=RANDOM_STATE, verbosity=-1, n_jobs=1, importance_type='gain'), {
             'n_estimators': [100, 300],
             'max_depth': [3, 5, 7],
             'learning_rate': [0.01, 0.05, 0.1],
@@ -118,7 +155,7 @@ def main():
 
         if grid:
             gs = GridSearchCV(model, grid, cv=tscv, scoring='accuracy',
-                              refit=True, n_jobs=-1)
+                              refit=True, n_jobs=1)
             gs.fit(X_tr, y_train)
             best = gs.best_estimator_
             best_params[name] = gs.best_params_
@@ -279,4 +316,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

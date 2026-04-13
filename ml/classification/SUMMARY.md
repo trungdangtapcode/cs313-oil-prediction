@@ -49,7 +49,7 @@
 
 ### Bước 1: Baseline — 8 models, 42 features gốc
 
-**Script:** `train.py`
+**Script:** `step1_train_baseline.py`
 
 | Model | Accuracy | F1_macro | AUC |
 |---|---|---|---|
@@ -68,7 +68,7 @@
 
 ### Bước 2: Fine-tune + Ensemble
 
-**Script:** `finetune.py`
+**Script:** `step2_finetune_ensemble.py`
 
 - RandomizedSearchCV 30 iterations, TimeSeriesSplit 5-fold
 - Voting (soft) và Stacking (meta-learner: LogisticRegression)
@@ -86,7 +86,7 @@
 
 ### Bước 3: Thêm Technical Indicators
 
-**Script:** `improve.py`
+**Script:** `step3_technical_improve.py`
 
 Thêm 29 features kỹ thuật: RSI-14, MACD, Bollinger Bands, Moving Averages, Momentum, Rolling return stats.
 
@@ -105,7 +105,7 @@ Thêm 29 features kỹ thuật: RSI-14, MACD, Bollinger Bands, Moving Averages, 
 
 ### Bước 4: Feature Selection trên 81 features
 
-**Script:** `select_and_train.py`
+**Script:** `step4_select_and_train.py`
 
 Ranking 81 features (42 gốc + 29 technicals + 10 lags) bằng Mutual Information + |Spearman|. Thử các subset TOP_10 đến ALL_81.
 
@@ -124,7 +124,7 @@ Ranking 81 features (42 gốc + 29 technicals + 10 lags) bằng Mutual Informati
 
 ### Bước 5: Smart Feature Selection — Correlation Clustering + Permutation Importance
 
-**Script:** `smart_selection.py`
+**Script:** `step5_smart_selection.py`
 
 **Mục đích:** Giải quyết đồng thời feature importance và đa cộng tuyến.
 
@@ -147,7 +147,7 @@ Ranking 81 features (42 gốc + 29 technicals + 10 lags) bằng Mutual Informati
 
 ### Bước 6: Weight Decay — Data gần quan trọng hơn
 
-**Script:** `weight_decay.py`
+**Script:** `step6_weight_decay.py`
 
 **Giả thuyết:** Market regime thay đổi, data gần test set quan trọng hơn data cũ.
 
@@ -166,7 +166,7 @@ Ranking 81 features (42 gốc + 29 technicals + 10 lags) bằng Mutual Informati
 
 ### Bước 7: XGBoost vs GBM — Extensive Tuning
 
-**Script:** `xgb_vs_gbm.py`
+**Script:** `step7_xgb_vs_gbm.py`
 
 **Giả thuyết:** XGBoost với grid rộng hơn sẽ vượt GBM.
 
@@ -259,12 +259,12 @@ model = GradientBoostingClassifier(
 
 ```
 ml/classification/
-├── train.py               # Bước 1: Baseline 8 models
-├── finetune.py            # Bước 2: Fine-tune + Ensemble
-├── improve.py             # Bước 3: Technical indicators (shift fix)
-├── select_and_train.py    # Bước 4: Feature selection trên 81 features ← BEST
-├── smart_selection.py     # Bước 5: Cluster + Permutation importance
-├── weight_decay.py        # Bước 6: Weight decay experiment
-├── xgb_vs_gbm.py         # Bước 7: Extensive tuning
+├── step1_train_baseline.py       # Bước 1: Baseline 8 models
+├── step2_finetune_ensemble.py    # Bước 2: Fine-tune + Ensemble
+├── step3_technical_improve.py    # Bước 3: Technical indicators + leakage fix
+├── step4_select_and_train.py     # Bước 4: Feature selection trên 81 features <- BEST
+├── step5_smart_selection.py      # Bước 5: Cluster + Permutation importance
+├── step6_weight_decay.py         # Bước 6: Weight decay experiment
+├── step7_xgb_vs_gbm.py           # Bước 7: Extensive tuning
 └── results/               # CSV + plots
 ```

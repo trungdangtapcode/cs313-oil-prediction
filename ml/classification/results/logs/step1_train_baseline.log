@@ -1,0 +1,53 @@
+
+==========================================================================================
+ CLASSIFICATION - Oil Price Direction (UP/DOWN)
+==========================================================================================
+  Features: 42
+  ['yield_spread', 'fed_funds_rate_lag', 'cpi_lag', 'unemployment_lag', 'crude_inventory_weekly', 'crude_production_weekly', 'net_imports_weekly', 'inventory_change_pct', 'gdelt_tone', 'gdelt_goldstein', 'gdelt_events', 'gdelt_tone_7d', 'gdelt_tone_30d', 'gdelt_tone_spike', 'gdelt_volume_7d', 'gdelt_goldstein_7d', 'conflict_event_count', 'fatalities', 'usd_return', 'sp500_return', 'vix_return', 'oil_volatility_7d', 'fed_rate_change', 'recession_signal', 'cpi_yoy', 'fed_rate_regime', 'real_rate', 'inventory_zscore', 'production_change_pct', 'net_imports_change_pct', 'gdelt_volume_log', 'media_attention_spike', 'conflict_intensity_7d', 'fatalities_7d', 'geopolitical_stress_index', 'oil_return_lag1', 'oil_return_lag2', 'vix_lag1', 'gdelt_tone_lag1', 'gdelt_volume_lag1', 'day_of_week', 'month']
+  Train: 2082 (2015-01-08 -> 2022-12-30)
+  Test:  840  (2023-01-02 -> 2026-03-20)
+
+  Target distribution (Train): UP=1069 (51.3%) | DOWN=1013 (48.7%)
+  Target distribution (Test):  UP=418 (49.8%) | DOWN=422 (50.2%)
+
+--- LogisticRegression ---
+  Best params: {'C': 10.0, 'penalty': 'l1', 'solver': 'saga'}
+  CV Accuracy: 0.5130
+  Accuracy:    0.4940
+  F1 (binary): 0.6181
+  F1 (macro):  0.4343
+  AUC:         0.5068
+  Confusion:   TP=344 FP=351 TN=71 FN=74
+  Time:        51.9s
+
+--- SVM_RBF ---
+  Best params: {'C': 10.0, 'gamma': 'auto', 'kernel': 'rbf'}
+  CV Accuracy: 0.5360
+  Accuracy:    0.4774
+  F1 (binary): 0.5285
+  F1 (macro):  0.4712
+  AUC:         0.4770
+  Confusion:   TP=246 FP=267 TN=155 FN=172
+  Time:        46.3s
+
+--- SVM_Linear ---
+  Best params: {'C': 10.0}
+  CV Accuracy: 0.5245
+  Accuracy:    0.4988
+  F1 (binary): 0.5979
+  F1 (macro):  0.4664
+  AUC:         0.5102
+  Confusion:   TP=313 FP=316 TN=106 FN=105
+  Time:        92.0s
+
+--- RandomForest ---
+  Best params: {'max_depth': 15, 'min_samples_leaf': 5, 'n_estimators': 300}
+  CV Accuracy: 0.5366
+  Accuracy:    0.5107
+  F1 (binary): 0.2700
+  F1 (macro):  0.4510
+  AUC:         0.5376
+  Confusion:   TP=76 FP=69 TN=353 FN=342
+  Time:        182.9s
+
+--- GradientBoosting ---

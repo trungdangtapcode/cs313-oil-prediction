@@ -236,3 +236,19 @@ model = GradientBoostingClassifier(
 # Weight: uniform (không decay)
 # Accuracy: 57.4%
 ```
+
+---
+
+## 9. Cấu trúc scripts
+
+```
+ml/classification/
+├── step1_train_baseline.py       # Bước 1: Baseline 8 models
+├── step2_finetune_ensemble.py    # Bước 2: Fine-tune + Ensemble
+├── step3_technical_improve.py    # Bước 3: Technical indicators + leakage fix
+├── step4_select_and_train.py     # Bước 4: Feature selection trên 81 features <- BEST
+├── step5_smart_selection.py      # Bước 5: Cluster + Permutation importance
+├── step6_weight_decay.py         # Bước 6: Weight decay experiment
+├── step7_xgb_vs_gbm.py           # Bước 7: Extensive tuning
+└── results/                      # CSV + plots
+```

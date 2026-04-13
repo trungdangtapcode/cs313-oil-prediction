@@ -1,6 +1,37 @@
-﻿"""
-STEP 8: XGBoost vs GBM - extensive tuning
-Usage: python ml/step8_xgb_vs_gbm.py
+"""
+STEP 7: XGBoost vs GBM Extensive Tuning
+
+This step is a heavier tuning experiment focused on the strongest
+tree-based models after technical features and feature selection are in place.
+
+Goal of this step:
+  - Compare whether wide hyperparameter search improves over simpler settings
+  - Test XGBoost, GBM, and LightGBM under larger search spaces
+  - Measure the tradeoff between stronger CV scores and actual test performance
+
+Target used in this file:
+  - Binary classification: oil_return > 0 -> UP=1, otherwise DOWN=0
+
+Input features:
+  - Base features plus no-leakage technical features from step 3
+  - A TOP_50 subset is rebuilt inside this script using MI + Spearman ranking
+
+Models trained in this file:
+  - XGBClassifier
+  - GradientBoostingClassifier
+  - LGBMClassifier
+
+Model selection:
+  - RandomizedSearchCV with large hyperparameter grids
+  - TimeSeriesSplit for time-aware cross-validation
+  - Final comparison with Accuracy, F1_macro, AUC, and runtime
+
+Outputs:
+  - Console comparison of the tuned models
+  - results/step8_results.csv
+
+Usage:
+  python ml/classification/step7_xgb_vs_gbm.py
 """
 import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -14,13 +45,13 @@ from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
 from config import RANDOM_STATE as RS, DATA_PATH, SPLIT_DATE, get_tscv
-from improve import add_technical_features
+from step3_technical_improve import add_technical_features
 
 P = '=' * 90
 
 
 def main():
-    print(f'\n{P}\n STEP 8: XGBoost vs GBM â€” EXTENSIVE TUNING\n{P}')
+    print(f'\n{P}\n STEP 8: XGBoost vs GBM - EXTENSIVE TUNING\n{P}')
 
     # Load + technicals + TOP_50
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
@@ -54,10 +85,10 @@ def main():
 
     print(f'  Features: {len(top50)} | Train: {len(X_train)} | Test: {len(X_test)}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    # XGBoost â€” WIDE GRID
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    print(f'\n{P}\n XGBoost â€” 50 iterations RandomizedSearch\n{P}')
+    # ============================================================================
+    # XGBoost - WIDE GRID
+    # ============================================================================
+    print(f'\n{P}\n XGBoost - 50 iterations RandomizedSearch\n{P}')
 
     xgb_grid = {
         'n_estimators': [100, 200, 300, 500, 800],
@@ -100,10 +131,10 @@ def main():
     for _, r in cv_results.head(10).iterrows():
         print(f'  {int(r["rank_test_score"]):<6} {r["mean_test_score"]:>8.4f} {r["std_test_score"]:>8.4f}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    # GBM â€” WIDE GRID
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    print(f'\n{P}\n GBM (sklearn) â€” 50 iterations RandomizedSearch\n{P}')
+    # ============================================================================
+    # GBM - WIDE GRID
+    # ============================================================================
+    print(f'\n{P}\n GBM (sklearn) - 50 iterations RandomizedSearch\n{P}')
 
     gbm_grid = {
         'n_estimators': [100, 200, 300, 500, 800],
@@ -142,10 +173,10 @@ def main():
     for _, r in cv_results2.head(10).iterrows():
         print(f'  {int(r["rank_test_score"]):<6} {r["mean_test_score"]:>8.4f} {r["std_test_score"]:>8.4f}')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    # LightGBM â€” WIDE GRID (for reference)
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    print(f'\n{P}\n LightGBM â€” 50 iterations RandomizedSearch\n{P}')
+    # ============================================================================
+    # LightGBM - WIDE GRID (for reference)
+    # ============================================================================
+    print(f'\n{P}\n LightGBM - 50 iterations RandomizedSearch\n{P}')
 
     lgbm_grid = {
         'n_estimators': [100, 200, 300, 500, 800],
@@ -179,9 +210,9 @@ def main():
     print(f'  Test:    Acc={lgbm_acc:.4f} F1m={lgbm_f1:.4f} AUC={lgbm_auc:.4f}')
     print(f'  Time:    {lgbm_time}s')
 
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     # COMPARISON
-    # â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    # ============================================================================
     print(f'\n{P}\n FINAL COMPARISON\n{P}')
     print(f'\n {"Model":<10} {"CV_Acc":>8} {"Test_Acc":>10} {"F1_macro":>10} {"AUC":>8} {"Time":>8}')
     print(f' {"-"*58}')
@@ -207,4 +238,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
