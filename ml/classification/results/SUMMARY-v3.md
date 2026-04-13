@@ -208,10 +208,8 @@ Nếu chỉ so các step cùng bài toán chuẩn `oil_return_fwd1 > 0` và cùn
   - `Accuracy = 0.5119`
   - `AUC = 0.5282`
 
-## 4. Kết luận thực dụng
+## 4. Kết luận 
 
-- Pipeline rerun hiện tại đã hoàn tất cho các step `1, 2, 3, 4, 5, 6, 7`.
-- Các sửa leakage và reproducibility đã được áp dụng trước khi rerun.
 - Trong batch kết quả này, ứng viên tốt nhất đang là:
   - `Step 5 / GBM / ALL_82`
   - `Holdout_Accuracy = 0.5429`
