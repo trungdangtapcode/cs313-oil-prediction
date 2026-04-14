@@ -58,6 +58,9 @@ from step3_technical_improve import add_technical_features
 P = '=' * 90
 OUT = OUT_DIR
 os.makedirs(OUT, exist_ok=True)
+CPU_COUNT = os.cpu_count() or 1
+SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
+MODEL_N_JOBS = max(1, int(os.getenv('MODEL_N_JOBS', str(min(12, max(1, CPU_COUNT // 4))))))
 SUBSET_SIZES = [
     int(x.strip()) for x in os.getenv('STEP4_SUBSET_SIZES', '10,15,20,25,30,40,50,60,70').split(',') if x.strip()
 ]
@@ -120,6 +123,7 @@ def main():
     seed = set_global_seed()
     print(f'\n{P}\n STEP 4: FEATURE SELECTION + RETRAIN (81 features)\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Parallelism: search_jobs={SEARCH_N_JOBS} | model_jobs={MODEL_N_JOBS}')
     print(f'  Final randomized-search iterations: {STEP4_N_ITER}')
     print(f'  Subset sizes: {SUBSET_SIZES}')
 
@@ -168,7 +172,7 @@ def main():
     proxy = LGBMClassifier(
         random_state=RS,
         verbosity=-1,
-        n_jobs=1,
+        n_jobs=MODEL_N_JOBS,
         n_estimators=200,
         max_depth=5,
         learning_rate=0.05,
@@ -181,7 +185,7 @@ def main():
     best_acc = -np.inf
     for case in subset_cases:
         feats = case['Features']
-        cv = cross_val_score(proxy, X_train[feats], y_train, cv=tscv, scoring='accuracy')
+        cv = cross_val_score(proxy, X_train[feats], y_train, cv=tscv, scoring='accuracy', n_jobs=SEARCH_N_JOBS)
         row = {
             'Case': case['Case'],
             'Ranking': case['Ranking'],
@@ -218,7 +222,7 @@ def main():
 
     models = {
         'XGB': (
-            XGBClassifier(random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss'),
+            XGBClassifier(random_state=RS, verbosity=0, n_jobs=MODEL_N_JOBS, eval_metric='logloss'),
             {
                 'n_estimators': [200, 300, 500],
                 'max_depth': [3, 5, 7],
@@ -236,7 +240,7 @@ def main():
             },
         ),
         'LGBM': (
-            LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=1, importance_type='gain'),
+            LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS, importance_type='gain'),
             {
                 'n_estimators': [200, 300, 500],
                 'max_depth': [3, 5, 7],
@@ -257,7 +261,7 @@ def main():
             cv=tscv,
             scoring='accuracy',
             refit=True,
-            n_jobs=1,
+            n_jobs=SEARCH_N_JOBS,
             random_state=RS,
         )
         gs.fit(X_tr, y_train)

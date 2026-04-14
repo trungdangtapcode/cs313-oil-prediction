@@ -3,7 +3,7 @@
  STEP 5: SMART FEATURE SELECTION
 ==========================================================================================
   Seed: 42
-  Parallelism: search_jobs=8 | model_jobs=12
+  Parallelism: search_jobs=8 | model_jobs=4
   Permutation repeats: 5
   Final randomized-search iterations: 15
   Extra top-N sets: [10, 15, 20, 25]
@@ -70,31 +70,31 @@
  B) PERMUTATION IMPORTANCE
 ==========================================================================================
   Computing permutation importance (5 repeats)...
-  Done (2.1s)
+  Done (1.7s)
 
  Top 20 Permutation Importance:
  #    Feature                         Perm_mean   Perm_std
  ----------------------------------------------------------
- 1    yield_spread                      0.01834    0.00781
- 2    ret_mean_5                        0.00710    0.00849
- 3    momentum_10                       0.00473    0.00401
- 4    sp500_return_lag1                 0.00414    0.00715
- 5    gdelt_tone_lag1                   0.00355    0.00734
- 6    gdelt_volume_lag1_log1p           0.00296    0.00878
- 7    macd_signal                       0.00296    0.00878
- 8    oil_return                        0.00296    0.01785
- 9    vix_return_slog1p                 0.00237    0.00574
- 10   ret_mean_20                       0.00118    0.00355
- 11   sp500_return                      0.00059    0.00542
- 12   net_imports_change_pct_slog1p     0.00059    0.00997
- 13   macd_cross                        0.00000    0.00000
- 14   macd                              0.00000    0.00418
- 15   ma_20_50_cross                    0.00000    0.00000
- 16   ma_10_20_cross                    0.00000    0.00000
- 17   vix_return_lag1                   0.00000    0.00000
- 18   oil_return_lag2                  -0.00000    0.00816
- 19   gdelt_goldstein                  -0.00059    0.01144
- 20   ma_10                            -0.00059    0.00118
+ 1    yield_spread                      0.02722    0.01144
+ 2    ret_std_5                         0.01538    0.00685
+ 3    sp500_return                      0.01479    0.01138
+ 4    oil_return_lag2                   0.01420    0.00435
+ 5    macd_hist                         0.01361    0.01177
+ 6    oil_return_lag3                   0.01243    0.00905
+ 7    oil_return                        0.01183    0.01198
+ 8    gdelt_tone_lag1                   0.01183    0.00495
+ 9    gdelt_goldstein                   0.01065    0.01331
+ 10   oil_return_lag1                   0.00769    0.00947
+ 11   ret_mean_20                       0.00710    0.00609
+ 12   momentum_10                       0.00710    0.00401
+ 13   bb_width                          0.00651    0.00542
+ 14   month_cos                         0.00651    0.00392
+ 15   sp500_return_lag1                 0.00651    0.00632
+ 16   bb_upper                          0.00592    0.00324
+ 17   fatalities_log1p                  0.00533    0.00392
+ 18   oil_return_lag5                   0.00473    0.00762
+ 19   momentum_20                       0.00414    0.00237
+ 20   gdelt_goldstein_7d                0.00414    0.00302
 
 ==========================================================================================
  C) COMBINE: BEST FEATURE PER CLUSTER
@@ -102,44 +102,44 @@
 
   Cluster Selected                           Perm Dropped                                           
  ----------------------------------------------------------------------------------------------------
-        1 vix_return_slog1p               0.00237 sp500_return                                      
-        2 oil_return                      0.00296 -                                                 
-        3 usd_return                     -0.00651 -                                                 
-        4 oil_return_lag1                -0.00178 -                                                 
-        5 sp500_return_lag1               0.00414 -                                                 
-        6 ret_mean_5                      0.00710 momentum_5                                        
-        7 momentum_10                     0.00473 macd_cross, price_vs_ma20, macd_hist, rsi_14, bb_position
-        8 ma_5_10_cross                  -0.01183 -                                                 
-        9 macd_signal                     0.00296 ret_mean_20, macd, momentum_20, price_vs_ma50     
+        1 sp500_return                    0.01479 vix_return_slog1p                                 
+        2 oil_return                      0.01183 -                                                 
+        3 usd_return                     -0.00000 -                                                 
+        4 oil_return_lag1                 0.00769 -                                                 
+        5 sp500_return_lag1               0.00651 -                                                 
+        6 momentum_5                      0.00355 ret_mean_5                                        
+        7 macd_hist                       0.01361 momentum_10, bb_position, price_vs_ma20, macd_cross, rsi_14
+        8 ma_5_10_cross                  -0.00355 -                                                 
+        9 ret_mean_20                     0.00710 momentum_20, price_vs_ma50, macd_signal, macd     
        10 ma_10_20_cross                  0.00000 -                                                 
        11 ma_20_50_cross                  0.00000 -                                                 
-       12 oil_return_lag5                -0.00414 -                                                 
-       13 oil_return_lag3                -0.00355 -                                                 
-       14 oil_return_lag2                -0.00000 -                                                 
-       15 month_sin                      -0.00355 -                                                 
-       16 inventory_change_pct           -0.01302 -                                                 
-       17 month_cos                      -0.00059 -                                                 
-       18 conflict_event_count_log1p     -0.00059 conflict_intensity_7d_log1p                       
-       19 day_of_week_cos                -0.00947 -                                                 
-       20 day_of_week_sin                -0.00118 -                                                 
-       21 gdelt_goldstein                -0.00059 gdelt_goldstein_7d                                
-       22 gdelt_tone_lag1                 0.00355 gdelt_tone_7d                                     
-       23 gdelt_tone_30d                 -0.00414 -                                                 
-       24 fatalities_log1p               -0.00296 fatalities_7d_log1p                               
-       25 gdelt_volume_lag1_log1p         0.00296 gdelt_events_log1p                                
-       26 vix_lag1_log1p                 -0.00237 -                                                 
-       27 ma_5                           -0.00059 ma_10, ma_50, bb_lower, ma_20, bb_upper           
-       28 inventory_zscore               -0.00118 -                                                 
-       29 yield_spread                    0.01834 -                                                 
-       30 ret_std_5                      -0.01775 -                                                 
-       31 ret_std_20                     -0.01361 -                                                 
-       32 bb_width                       -0.01598 -                                                 
-       33 production_change_pct_slog1p   -0.00414 -                                                 
-       34 net_imports_change_pct_slog1p   0.00059 -                                                 
+       12 oil_return_lag5                 0.00473 -                                                 
+       13 oil_return_lag3                 0.01243 -                                                 
+       14 oil_return_lag2                 0.01420 -                                                 
+       15 month_sin                       0.00414 -                                                 
+       16 inventory_change_pct           -0.00592 -                                                 
+       17 month_cos                       0.00651 -                                                 
+       18 conflict_event_count_log1p     -0.00651 conflict_intensity_7d_log1p                       
+       19 day_of_week_cos                 0.00237 -                                                 
+       20 day_of_week_sin                -0.00355 -                                                 
+       21 gdelt_goldstein                 0.01065 gdelt_goldstein_7d                                
+       22 gdelt_tone_lag1                 0.01183 gdelt_tone_7d                                     
+       23 gdelt_tone_30d                  0.00296 -                                                 
+       24 fatalities_log1p                0.00533 fatalities_7d_log1p                               
+       25 gdelt_volume_lag1_log1p         0.00118 gdelt_events_log1p                                
+       26 vix_lag1_log1p                 -0.00592 -                                                 
+       27 bb_upper                        0.00592 ma_20, bb_lower, ma_5, ma_10, ma_50               
+       28 inventory_zscore                0.00000 -                                                 
+       29 yield_spread                    0.02722 -                                                 
+       30 ret_std_5                       0.01538 -                                                 
+       31 ret_std_20                     -0.00710 -                                                 
+       32 bb_width                        0.00651 -                                                 
+       33 production_change_pct_slog1p    0.00237 -                                                 
+       34 net_imports_change_pct_slog1p  -0.00414 -                                                 
        35 vix_return_lag1                 0.00000 -                                                 
 
  Selected: 35 features (from 56 -> minus 21)
- After dropping perm <= 0: 10 features
+ After dropping perm <= 0: 23 features
 
 ==========================================================================================
  D) COMPARE FEATURE SETS
@@ -147,52 +147,52 @@
 
  Set                          N    LGBM_CV     XGB_CV     GBM_CV
  ----------------------------------------------------------------
- ALL_56                      56     0.5107     0.5201     0.5047
- CLUSTER_35                  35     0.5136     0.5266     0.5260
- CLUSTER_POS_10              10     0.5373     0.5373     0.5047
- PERM_TOP_10                 10     0.5160     0.5059     0.4970
- PERM_TOP_15                 15     0.5178     0.5296     0.5178
- PERM_TOP_20                 20     0.5142     0.5219     0.5160
- PERM_TOP_25                 25     0.5189     0.5225     0.5225
+ ALL_56                      56     0.5178     0.5201     0.5018
+ CLUSTER_35                  35     0.5243     0.5107     0.5254
+ CLUSTER_POS_23              23     0.5195     0.5059     0.5213
+ PERM_TOP_10                 10     0.5112     0.4982     0.4876
+ PERM_TOP_15                 15     0.5124     0.5030     0.4953
+ PERM_TOP_20                 20     0.5077     0.5148     0.5024
+ PERM_TOP_25                 25     0.5136     0.5237     0.5201
 
 ==========================================================================================
- E) FINAL TRAIN ON CLUSTER_POS_10 (10 features)
+ E) FINAL TRAIN ON CLUSTER_35 (35 features)
 ==========================================================================================
 
 --- XGB ---
-  Best: {'reg_alpha': 0, 'n_estimators': 300, 'max_depth': 7, 'learning_rate': 0.01}
-  TestAcc=0.5345 TestF1m=0.5290 TestAUC=0.5498 (CV=0.5456, 5.6s)
+  Best: {'reg_alpha': 0, 'n_estimators': 300, 'max_depth': 5, 'learning_rate': 0.01}
+  TestAcc=0.5333 TestF1m=0.5029 TestAUC=0.5446 (CV=0.5467, 13.0s)
 
 --- GBM ---
-  Best: {'n_estimators': 500, 'min_samples_leaf': 5, 'max_depth': 3, 'learning_rate': 0.03}
-  TestAcc=0.5262 TestF1m=0.5153 TestAUC=0.5363 (CV=0.5349, 38.6s)
+  Best: {'n_estimators': 300, 'min_samples_leaf': 5, 'max_depth': 3, 'learning_rate': 0.01}
+  TestAcc=0.5107 TestF1m=0.4828 TestAUC=0.5197 (CV=0.5337, 89.2s)
 
 --- LGBM ---
   Best: {'num_leaves': 15, 'n_estimators': 500, 'max_depth': 5, 'learning_rate': 0.05}
-  TestAcc=0.5452 TestF1m=0.5326 TestAUC=0.5563 (CV=0.5473, 2.0s)
+  TestAcc=0.5310 TestF1m=0.4733 TestAUC=0.5508 (CV=0.5296, 4.2s)
 
 ==========================================================================================
  SUMMARY
 ==========================================================================================
 Model  Test_Accuracy  Test_F1_macro  Test_AUC   CV_Acc  Time_s
- LGBM       0.545238       0.532624  0.556254 0.547337     2.0
-  XGB       0.534524       0.528996  0.549848 0.545562     5.6
-  GBM       0.526190       0.515284  0.536327 0.534911    38.6
+  XGB       0.533333       0.502851  0.544582 0.546746    13.0
+ LGBM       0.530952       0.473259  0.550823 0.529586     4.2
+  GBM       0.510714       0.482845  0.519689 0.533728    89.2
 
  Pipeline:
    81 features
    -> Correlation clustering (threshold=0.3, |rho|>0.7 grouped)
    -> 35 clusters
    -> Permutation importance keeps 1 best feature per cluster
-   -> CLUSTER_POS_10: 10 features
-   -> LGBM: TestAcc=0.5452
-   -> Test: Acc=0.5452 F1m=0.5326 AUC=0.5563
+   -> CLUSTER_35: 35 features
+   -> XGB: TestAcc=0.5333
+   -> Test: Acc=0.5333 F1m=0.5029 AUC=0.5446
 
  Comparison:
    Baseline (42 features, no technicals):   Acc=0.5274
    Step4 (81 features, no selection):        Acc=0.5530
    Step5 (naive MI+Spearman selection):      Acc=0.5619
-   Step5 (cluster+perm selection, test):      Acc=0.5452
+   Step5 (cluster+perm selection, test):      Acc=0.5333
 
 ==========================================================================================
  DONE

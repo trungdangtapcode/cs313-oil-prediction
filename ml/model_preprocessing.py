@@ -1,19 +1,19 @@
 """
-Shared model-time preprocessing helpers.
+Shared preprocessing helpers for classification.
 
-These transforms are intentionally fit only inside the training pipeline.
-They should not be baked into the exported dataset CSVs.
+There are now two distinct dataset stages:
 
-Guidance:
-  - dataset_final_noleak_processed.csv from scripts/step5b_processing.py is the
-    canonical deterministic processed dataset.
-  - This file defines the train-time preprocessing groups for that dataset.
-  - If a future step has the same processed data as step5b, prefer comments and
-    code references over creating a duplicated dataset step.
+  - dataset_final_noleak_processed.csv
+    Deterministic transforms only from step5b. Scalers are still fit at model time.
+
+  - dataset_final_noleak_step5c.csv
+    Research-oriented dataset where curated scalers are already baked into the
+    exported CSV. When this dataset is used, the training pipeline should avoid
+    scaling a second time.
 """
 
 from pathlib import Path
-from typing import Dict, List, Sequence
+from typing import Dict, List, Optional, Sequence
 
 import joblib
 from sklearn.compose import ColumnTransformer
@@ -67,16 +67,39 @@ def _ordered_subset(feature_names: Sequence[str], candidates: Sequence[str]) -> 
     return [col for col in candidates if col in feature_set]
 
 
-def get_model_time_groups(feature_names: Sequence[str]) -> Dict[str, List[str]]:
+def _is_step5c_baked_scaled(data_path: Optional[str]) -> bool:
+    if not data_path:
+        return False
+    try:
+        return Path(data_path).name in {
+            "dataset_final_noleak_step5c.csv",
+            "dataset_final_noleak_step5c_scaler.csv",
+        }
+    except Exception:
+        return False
+
+
+def get_model_time_groups(feature_names: Sequence[str], data_path: Optional[str] = None) -> Dict[str, List[str]]:
     """
     Return column groups for model-time preprocessing.
 
-    If the feature set matches the step5c processed schema, use the curated
-    Standard / Robust / Power grouping. Otherwise fall back to a generic
-    all-standard setup.
+    If the active dataset is the baked-scaled step5c export, treat every feature
+    as passthrough. Otherwise, if the feature set matches the step5b/step5c
+    processed schema, use the curated Standard / Robust / Power grouping.
+    Fall back to a generic all-standard setup for unknown schemas.
     """
     feature_names = list(feature_names)
     feature_set = set(feature_names)
+
+    if _is_step5c_baked_scaled(data_path):
+        return {
+            "standard": [],
+            "robust": [],
+            "power": [],
+            "passthrough": list(feature_names),
+            "other": [],
+            "schema": "step5c_baked_scaled_passthrough",
+        }
 
     looks_like_step5c = {
         "day_of_week_sin",
@@ -112,8 +135,8 @@ def get_model_time_groups(feature_names: Sequence[str]) -> Dict[str, List[str]]:
     }
 
 
-def build_model_time_preprocessor(feature_names: Sequence[str]) -> ColumnTransformer:
-    groups = get_model_time_groups(feature_names)
+def build_model_time_preprocessor(feature_names: Sequence[str], data_path: Optional[str] = None) -> ColumnTransformer:
+    groups = get_model_time_groups(feature_names, data_path=data_path)
     transformers = []
 
     if groups["standard"]:
@@ -179,13 +202,14 @@ def get_preprocessor_feature_names(preprocessor: ColumnTransformer) -> List[str]
     return cleaned
 
 
-def save_model_bundle(path: str, model, feature_names: Sequence[str], preprocessor=None) -> str:
+def save_model_bundle(path: str, model, feature_names: Sequence[str], preprocessor=None, data_path: Optional[str] = None) -> str:
     bundle = {
         "model": model,
         "feature_names": list(feature_names),
         "preprocessor": preprocessor,
         "preprocessor_feature_names": get_preprocessor_feature_names(preprocessor) if preprocessor is not None else list(feature_names),
-        "groups": get_model_time_groups(feature_names),
+        "groups": get_model_time_groups(feature_names, data_path=data_path),
+        "data_path": data_path,
     }
     out_path = Path(path)
     out_path.parent.mkdir(parents=True, exist_ok=True)

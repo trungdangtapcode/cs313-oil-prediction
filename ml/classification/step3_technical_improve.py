@@ -70,6 +70,9 @@ from config import (
 P = '=' * 90
 OUT = OUT_DIR
 os.makedirs(OUT, exist_ok=True)
+CPU_COUNT = os.cpu_count() or 1
+SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
+MODEL_N_JOBS = max(1, int(os.getenv('MODEL_N_JOBS', str(min(12, max(1, CPU_COUNT // 4))))))
 
 def load_price_source():
     price_df = pd.read_csv(PRICE_SOURCE_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
@@ -218,19 +221,19 @@ def train_and_validate(X_train, X_eval, y_train, y_eval, target_name):
     tscv = get_tscv()
 
     models = {
-        'XGB': (XGBClassifier(random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss'),
+        'XGB': (XGBClassifier(random_state=RS, verbosity=0, n_jobs=MODEL_N_JOBS, eval_metric='logloss'),
                 {'n_estimators': [200, 300], 'max_depth': [3, 5], 'learning_rate': [0.01, 0.05]}),
         'GBM': (GradientBoostingClassifier(random_state=RS),
                 {'n_estimators': [200, 300], 'max_depth': [3, 5], 'learning_rate': [0.01, 0.05],
                  'min_samples_leaf': [5, 10]}),
-        'LGBM': (LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=1, importance_type='gain'),
+        'LGBM': (LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS, importance_type='gain'),
                  {'n_estimators': [200, 300], 'max_depth': [3, 5], 'learning_rate': [0.01, 0.05]}),
     }
 
     results = []
     for name, (model, grid) in models.items():
         gs = RandomizedSearchCV(model, grid, n_iter=10, cv=tscv,
-                                scoring='accuracy', refit=True, n_jobs=1, random_state=RS)
+                                scoring='accuracy', refit=True, n_jobs=SEARCH_N_JOBS, random_state=RS)
         gs.fit(X_train, y_train)
         pred = gs.best_estimator_.predict(X_eval)
         prob = gs.best_estimator_.predict_proba(X_eval) if hasattr(gs.best_estimator_, 'predict_proba') else None
@@ -279,6 +282,7 @@ def main():
     seed = set_global_seed()
     print(f'\n{P}\n STEP 4: IMPROVE CLASSIFICATION\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Parallelism: search_jobs={SEARCH_N_JOBS} | model_jobs={MODEL_N_JOBS}')
 
     # Load raw data
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)

@@ -216,13 +216,21 @@ def main():
 
     X_train = X_train_full[top25]
     X_test = X_test_full[top25]
-    scale_preprocessor = build_model_time_preprocessor(top25)
-    scaled_feature_names = get_preprocessor_feature_names(scale_preprocessor.fit(X_train))
-    X_train_sc = pd.DataFrame(scale_preprocessor.transform(X_train), columns=scaled_feature_names, index=X_train.index)
-    X_test_sc = pd.DataFrame(scale_preprocessor.transform(X_test), columns=scaled_feature_names, index=X_test.index)
     print(f'  Features: {len(top25)} (TOP_25)')
-    scale_groups = get_model_time_groups(top25)
+    scale_groups = get_model_time_groups(top25, data_path=DATA_PATH)
+    use_baked_step5c = scale_groups["schema"] == "step5c_baked_scaled_passthrough"
+    scale_preprocessor = None if use_baked_step5c else build_model_time_preprocessor(top25, data_path=DATA_PATH)
+    if use_baked_step5c:
+        scaled_feature_names = list(top25)
+        X_train_sc = X_train
+        X_test_sc = X_test
+    else:
+        scaled_feature_names = get_preprocessor_feature_names(scale_preprocessor.fit(X_train))
+        X_train_sc = pd.DataFrame(scale_preprocessor.transform(X_train), columns=scaled_feature_names, index=X_train.index)
+        X_test_sc = pd.DataFrame(scale_preprocessor.transform(X_test), columns=scaled_feature_names, index=X_test.index)
     print(f'  Model-time preprocessing schema: {scale_groups["schema"]}')
+    if use_baked_step5c:
+        print('  Input is baked-scaled step5c dataset -> skip model-time scaler')
     if scale_groups['schema'].endswith('_curated'):
         print(
             f'  Preprocessor groups: standard={len(scale_groups["standard"])} '
@@ -340,7 +348,8 @@ def main():
     artifact_features = top25
     if best['Use_Scaled']:
         artifact_preprocessor = scale_preprocessor
-        artifact_features = get_preprocessor_feature_names(artifact_preprocessor)
+        if artifact_preprocessor is None:
+            artifact_features = top25
     holdout_pred = final_model.predict(X_test_sc if best['Use_Scaled'] else X_test)
     holdout_score = get_scores(final_model, X_test_sc if best['Use_Scaled'] else X_test)
     holdout = score_predictions(y_test, holdout_pred, holdout_score)
@@ -359,6 +368,7 @@ def main():
         final_model,
         artifact_features,
         artifact_preprocessor,
+        data_path=DATA_PATH,
     )
 
     print(f'\n{P}\n SELECTED CANDIDATE\n{P}')

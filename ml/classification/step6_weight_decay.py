@@ -56,6 +56,8 @@ from step3_technical_improve import add_technical_features
 P = '=' * 90
 OUT = OUT_DIR
 os.makedirs(OUT, exist_ok=True)
+CPU_COUNT = os.cpu_count() or 1
+MODEL_N_JOBS = max(1, int(os.getenv('MODEL_N_JOBS', str(min(12, max(1, CPU_COUNT // 4))))))
 
 
 def exponential_weights(n, half_life):
@@ -90,6 +92,7 @@ def main():
     seed = set_global_seed()
     print(f'\n{P}\n STEP 7: WEIGHT DECAY\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Parallelism: model_jobs={MODEL_N_JOBS}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     df = add_technical_features(df)
@@ -165,10 +168,10 @@ def main():
         'GBM': lambda: GradientBoostingClassifier(
             random_state=RS, n_estimators=300, max_depth=5, learning_rate=0.03, min_samples_leaf=5),
         'XGB': lambda: XGBClassifier(
-            random_state=RS, verbosity=0, n_jobs=1, eval_metric='logloss',
+            random_state=RS, verbosity=0, n_jobs=MODEL_N_JOBS, eval_metric='logloss',
             n_estimators=300, max_depth=5, learning_rate=0.03),
         'LGBM': lambda: LGBMClassifier(
-            random_state=RS, verbosity=-1, n_jobs=1, importance_type='gain',
+            random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS, importance_type='gain',
             n_estimators=300, max_depth=5, learning_rate=0.03),
     }
 

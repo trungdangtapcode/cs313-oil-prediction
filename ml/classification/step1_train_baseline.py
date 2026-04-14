@@ -89,6 +89,8 @@ from config import (
 P = '=' * 90
 OUT = OUT_DIR
 os.makedirs(OUT, exist_ok=True)
+CPU_COUNT = os.cpu_count() or 1
+SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
 
 
 def evaluate(name, y_true, y_pred, y_score=None):
@@ -172,6 +174,7 @@ def main():
     seed = set_global_seed()
     print(f'\n{P}\n CLASSIFICATION - Oil Price Direction (UP/DOWN)\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Parallelism: search_jobs={SEARCH_N_JOBS}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     train_mask, test_mask, split_col = get_train_test_masks(df)
@@ -184,27 +187,35 @@ def main():
     y_test_ret = df.loc[test_mask, TARGET].values
     dates_test = df.loc[test_mask, 'date']
 
-    scale_preprocessor = build_model_time_preprocessor(features)
+    scale_groups = get_model_time_groups(features, data_path=DATA_PATH)
+    use_baked_step5c = scale_groups["schema"] == "step5c_baked_scaled_passthrough"
+    scale_preprocessor = None if use_baked_step5c else build_model_time_preprocessor(features, data_path=DATA_PATH)
     scaled_feature_names = None
     X_train_sc = None
     X_test_sc = None
     if any(use_sc for _, _, _, use_sc in get_models()):
-        X_train_sc_arr = scale_preprocessor.fit_transform(X_train)
-        scaled_feature_names = get_preprocessor_feature_names(scale_preprocessor)
-        X_train_sc = pd.DataFrame(X_train_sc_arr, columns=scaled_feature_names, index=X_train.index)
-        X_test_sc = pd.DataFrame(
-            scale_preprocessor.transform(X_test),
-            columns=scaled_feature_names,
-            index=X_test.index,
-        )
+        if use_baked_step5c:
+            X_train_sc = X_train
+            X_test_sc = X_test
+            scaled_feature_names = list(features)
+        else:
+            X_train_sc_arr = scale_preprocessor.fit_transform(X_train)
+            scaled_feature_names = get_preprocessor_feature_names(scale_preprocessor)
+            X_train_sc = pd.DataFrame(X_train_sc_arr, columns=scaled_feature_names, index=X_train.index)
+            X_test_sc = pd.DataFrame(
+                scale_preprocessor.transform(X_test),
+                columns=scaled_feature_names,
+                index=X_test.index,
+            )
 
     tscv = get_tscv()
     models = get_models()
-    scale_groups = get_model_time_groups(features)
 
     print(f'  Features: {len(features)}')
     print(f'  Train: {len(X_train)} | Test: {len(X_test)}')
     print(f'  Model-time preprocessing schema: {scale_groups["schema"]}')
+    if use_baked_step5c:
+        print('  Input is baked-scaled step5c dataset -> skip model-time scaler')
     if scale_groups['schema'].endswith('_curated'):
         print(
             f'  Preprocessor groups: standard={len(scale_groups["standard"])} '
@@ -227,7 +238,7 @@ def main():
         X_tr = X_train_sc if use_sc else X_train
         X_te = X_test_sc if use_sc else X_test
 
-        gs = GridSearchCV(model, grid, cv=tscv, scoring='accuracy', refit=True, n_jobs=1)
+        gs = GridSearchCV(model, grid, cv=tscv, scoring='accuracy', refit=True, n_jobs=SEARCH_N_JOBS)
         gs.fit(X_tr, y_train)
         best = gs.best_estimator_
 
@@ -269,12 +280,16 @@ def main():
 
     if best_row['Use_Scaled']:
         artifact_preprocessor = scale_preprocessor
-        artifact_features = get_preprocessor_feature_names(artifact_preprocessor)
-        X_eval = pd.DataFrame(
-            artifact_preprocessor.transform(X_test),
-            columns=artifact_features,
-            index=X_test.index,
-        )
+        if artifact_preprocessor is None:
+            artifact_features = features
+            X_eval = X_test
+        else:
+            artifact_features = get_preprocessor_feature_names(artifact_preprocessor)
+            X_eval = pd.DataFrame(
+                artifact_preprocessor.transform(X_test),
+                columns=artifact_features,
+                index=X_test.index,
+            )
     else:
         X_eval = X_test
 
@@ -290,6 +305,7 @@ def main():
         best_model,
         artifact_features,
         artifact_preprocessor,
+        data_path=DATA_PATH,
     )
 
     print(f'\n{P}\n CLASSIFICATION REPORT - {best_row["Model"]} (test)\n{P}')

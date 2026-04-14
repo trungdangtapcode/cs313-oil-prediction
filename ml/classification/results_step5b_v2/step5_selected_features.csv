@@ -1,0 +1,11 @@
+feature
+vix_return_slog1p
+oil_return
+sp500_return_lag1
+ret_mean_5
+momentum_10
+macd_signal
+gdelt_tone_lag1
+gdelt_volume_lag1_log1p
+yield_spread
+net_imports_change_pct_slog1p

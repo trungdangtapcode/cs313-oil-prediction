@@ -53,6 +53,8 @@ from step3_technical_improve import add_technical_features
 P = '=' * 90
 OUT = OUT_DIR
 os.makedirs(OUT, exist_ok=True)
+CPU_COUNT = os.cpu_count() or 1
+SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
 STEP7_N_ITER = max(1, int(os.getenv('STEP7_N_ITER', '50')))
 
 
@@ -70,6 +72,7 @@ def main():
     seed = set_global_seed()
     print(f'\n{P}\n STEP 8: XGBoost vs GBM - EXTENSIVE TUNING\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Parallelism: search_jobs={SEARCH_N_JOBS}')
     print(f'  Randomized-search iterations: {STEP7_N_ITER}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
@@ -159,7 +162,7 @@ def main():
             cv=tscv,
             scoring='accuracy',
             refit=True,
-            n_jobs=1,
+            n_jobs=SEARCH_N_JOBS,
             random_state=RS,
         )
         gs.fit(X_train, y_train)

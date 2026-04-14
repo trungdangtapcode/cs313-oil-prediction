@@ -3,6 +3,7 @@
  STEP 4: IMPROVE CLASSIFICATION
 ==========================================================================================
   Seed: 42
+  Parallelism: search_jobs=8 | model_jobs=4
 
  A) Adding technical indicators...
     Shape after technicals: (2872, 59)
@@ -23,23 +24,23 @@
   Distribution: UP=1047(51.5%) DOWN=985(48.5%)
     XGB    TestAcc=0.5179 TestF1m=0.4637 TestAUC=0.5623 (CV=0.5349)
     GBM    TestAcc=0.5143 TestF1m=0.4826 TestAUC=0.5278 (CV=0.5320)
-    LGBM   TestAcc=0.5250 TestF1m=0.5019 TestAUC=0.5305 (CV=0.5284)
-    Selected -> LGBM: TestAcc=0.5250 TestF1m=0.5019 TestAUC=0.5305
+    LGBM   TestAcc=0.5119 TestF1m=0.4645 TestAUC=0.5369 (CV=0.5331)
+    Selected -> XGB: TestAcc=0.5179 TestF1m=0.4637 TestAUC=0.5623
 
 --- Target: 1d_t03 ---
   Train: 1678 (skipped 354) | Test: 688 (skipped 152)
   Distribution: UP=919(54.8%) DOWN=759(45.2%)
     XGB    TestAcc=0.5015 TestF1m=0.4741 TestAUC=0.5423 (CV=0.5348)
     GBM    TestAcc=0.5044 TestF1m=0.4675 TestAUC=0.5339 (CV=0.5290)
-    LGBM   TestAcc=0.5218 TestF1m=0.5169 TestAUC=0.5360 (CV=0.5312)
-    Selected -> LGBM: TestAcc=0.5218 TestF1m=0.5169 TestAUC=0.5360
+    LGBM   TestAcc=0.5058 TestF1m=0.4983 TestAUC=0.5321 (CV=0.5362)
+    Selected -> LGBM: TestAcc=0.5058 TestF1m=0.4983 TestAUC=0.5321
 
 --- Target: 1d_t05 ---
   Train: 1501 (skipped 531) | Test: 613 (skipped 227)
   Distribution: UP=811(54.0%) DOWN=690(46.0%)
     XGB    TestAcc=0.4910 TestF1m=0.4513 TestAUC=0.5345 (CV=0.5432)
     GBM    TestAcc=0.4747 TestF1m=0.4221 TestAUC=0.5232 (CV=0.5408)
-    LGBM   TestAcc=0.4829 TestF1m=0.4518 TestAUC=0.5173 (CV=0.5504)
+    LGBM   TestAcc=0.4829 TestF1m=0.4409 TestAUC=0.5202 (CV=0.5456)
     Selected -> XGB: TestAcc=0.4910 TestF1m=0.4513 TestAUC=0.5345
 
 ==========================================================================================
@@ -53,24 +54,24 @@
 
  Test leaderboard:
    Target Model  Test_Accuracy  Test_F1_macro  Test_AUC  CV_Acc
-1  1d_raw  LGBM         0.5250         0.5019    0.5305  0.5284
-2  1d_t03  LGBM         0.5218         0.5169    0.5360  0.5312
-3  1d_raw   XGB         0.5179         0.4637    0.5623  0.5349
-4  1d_raw   GBM         0.5143         0.4826    0.5278  0.5320
+1  1d_raw   XGB         0.5179         0.4637    0.5623  0.5349
+2  1d_raw   GBM         0.5143         0.4826    0.5278  0.5320
+3  1d_raw  LGBM         0.5119         0.4645    0.5369  0.5331
+4  1d_t03  LGBM         0.5058         0.4983    0.5321  0.5362
 5  1d_t03   GBM         0.5044         0.4675    0.5339  0.5290
 6  1d_t03   XGB         0.5015         0.4741    0.5423  0.5348
 7  1d_t05   XGB         0.4910         0.4513    0.5345  0.5432
-8  1d_t05  LGBM         0.4829         0.4518    0.5173  0.5504
+8  1d_t05  LGBM         0.4829         0.4409    0.5202  0.5456
 9  1d_t05   GBM         0.4747         0.4221    0.5232  0.5408
 
  Selected test results:
    Target Model  Test_Accuracy  Test_F1_macro  Test_AUC
-1  1d_raw  LGBM         0.5250         0.5019    0.5305
-2  1d_t03  LGBM         0.5218         0.5169    0.5360
+1  1d_raw   XGB         0.5179         0.4637    0.5623
+2  1d_t03  LGBM         0.5058         0.4983    0.5321
 3  1d_t05   XGB         0.4910         0.4513    0.5345
 
- Best overall (chosen on test): 1d_raw / LGBM
- Test: Acc=0.5250 F1m=0.5019 AUC=0.5305
+ Best overall (chosen on test): 1d_raw / XGB
+ Test: Acc=0.5179 F1m=0.4637 AUC=0.5623
 
 ==========================================================================================
  DONE

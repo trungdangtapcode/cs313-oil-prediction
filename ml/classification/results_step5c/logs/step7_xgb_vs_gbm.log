@@ -3,6 +3,7 @@
  STEP 8: XGBoost vs GBM - EXTENSIVE TUNING
 ==========================================================================================
   Seed: 42
+  Parallelism: search_jobs=8
   Randomized-search iterations: 50
   Features: 50 | Train: 2032 | Test: 840
 
@@ -12,7 +13,7 @@
   Best params: {'subsample': 0.7, 'scale_pos_weight': 1.1, 'reg_lambda': 1.0, 'reg_alpha': 0.1, 'n_estimators': 200, 'min_child_weight': 5, 'max_depth': 8, 'learning_rate': 0.08, 'gamma': 0.5, 'colsample_bytree': 0.5}
   CV Acc:  0.5373
   Test:    Acc=0.5202 F1m=0.4852 AUC=0.5585
-  Time:    222.0s
+  Time:    37.5s
 
   Top 10 XGBoost configs:
   Rank     CV_Acc      Std
@@ -29,4 +30,57 @@
 
 ==========================================================================================
  GBM - 50 iterations RandomizedSearch
+==========================================================================================
+  Best params: {'subsample': 0.7, 'n_estimators': 300, 'min_samples_split': 2, 'min_samples_leaf': 20, 'max_features': 0.5, 'max_depth': 3, 'learning_rate': 0.005}
+  CV Acc:  0.5385
+  Test:    Acc=0.5155 F1m=0.4913 AUC=0.5309
+  Time:    154.3s
+
+  Top 10 GBM configs:
+  Rank     CV_Acc      Std
+  1        0.5385   0.0202
+  2        0.5373   0.0279
+  3        0.5367   0.0402
+  4        0.5361   0.0269
+  5        0.5325   0.0252
+  6        0.5320   0.0312
+  7        0.5314   0.0449
+  8        0.5308   0.0251
+  9        0.5308   0.0167
+  10       0.5302   0.0414
+
+==========================================================================================
+ LightGBM - 50 iterations RandomizedSearch
+==========================================================================================
+  Best params: {'subsample': 0.7, 'reg_lambda': 1.0, 'reg_alpha': 1.0, 'num_leaves': 31, 'n_estimators': 300, 'min_child_samples': 10, 'max_depth': 8, 'learning_rate': 0.03, 'colsample_bytree': 1.0}
+  CV Acc:  0.5373
+  Test:    Acc=0.5190 F1m=0.4570 AUC=0.5547
+  Time:    18.4s
+
+  Top 10 LightGBM configs:
+  Rank     CV_Acc      Std
+  1        0.5373   0.0317
+  2        0.5361   0.0393
+  3        0.5361   0.0321
+  3        0.5361   0.0339
+  5        0.5337   0.0441
+  6        0.5331   0.0390
+  7        0.5320   0.0391
+  8        0.5320   0.0365
+  9        0.5314   0.0246
+  9        0.5314   0.0353
+
+==========================================================================================
+ TEST COMPARISON
+==========================================================================================
+   Model   CV_Acc  Test_Accuracy  Test_F1_macro  Test_AUC  Time_s
+ XGBoost 0.537278       0.520238       0.485250  0.558465    37.5
+LightGBM 0.537278       0.519048       0.456975  0.554655    18.4
+     GBM 0.538462       0.515476       0.491334  0.530857   154.3
+
+ Winner selected on test: XGBoost
+ Test: Acc=0.5202 F1m=0.4852 AUC=0.5585
+
+==========================================================================================
+ DONE
 ==========================================================================================

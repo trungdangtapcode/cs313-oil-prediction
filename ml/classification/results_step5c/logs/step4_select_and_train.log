@@ -3,6 +3,7 @@
  STEP 4: FEATURE SELECTION + RETRAIN (81 features)
 ==========================================================================================
   Seed: 42
+  Parallelism: search_jobs=8 | model_jobs=4
   Final randomized-search iterations: 15
   Subset sizes: [10, 15, 20, 25, 30, 40, 50, 60, 70]
   Total features: 56
@@ -18,13 +19,13 @@
  1    bb_width                         0.0241   0.0252   0.6756       1      30        1
  2    day_of_week_sin                  0.0082   0.0717   0.6690      14       1        2
  3    conflict_event_count_log1p       0.0081   0.0643   0.6154      15       3        3
- 4    gdelt_tone_30d                   0.0080   0.0564   0.5581      16       5        4
+ 4    gdelt_tone_30d                   0.0080   0.0564   0.5592      16       5        4
  5    macd_signal                      0.0128   0.0389   0.5369       7      15        5
  6    gdelt_volume_lag1_log1p          0.0098   0.0456   0.5199      12      12        6
  7    ma_5_10_cross                    0.0104   0.0417   0.5068       9      14        7
  8    day_of_week_cos                  0.0149   0.0282   0.5046       5      25        8
  9    yield_spread                     0.0213   0.0072   0.4910       3      46        9
- 10   gdelt_tone_7d                    0.0051   0.0530   0.4748      21       8       10
+ 10   gdelt_tone_7d                    0.0054   0.0530   0.4813      20       8       10
  11   momentum_5                       0.0215   0.0033   0.4691       2      50       11
  12   inventory_zscore                 0.0103   0.0358   0.4630      10      17       12
  13   conflict_intensity_7d_log1p      0.0000   0.0659   0.4593      31       2       13
@@ -60,7 +61,7 @@
  43   ma_5                             0.0000   0.0190   0.1326      46      37       43
  44   ma_20                            0.0000   0.0178   0.1240      47      38       44
  45   ret_mean_5                       0.0049   0.0029   0.1222      22      51       45
- 46   oil_return_lag2                  0.0054   0.0013   0.1199      20      52       46
+ 46   oil_return_lag2                  0.0054   0.0013   0.1199      21      52       46
  47   ret_std_20                       0.0000   0.0160   0.1116      48      40       47
  48   bb_upper                         0.0000   0.0141   0.0984      49      41       48
  49   macd_hist                        0.0037   0.0003   0.0777      25      55       49
@@ -85,82 +86,82 @@
 
  Case                     Rank             N   CV_Acc
  --------------------------------------------------------
- SPEARMAN_TOP_10          spearman        10   0.5095
- SPEARMAN_TOP_15          spearman        15   0.5183
- SPEARMAN_TOP_20          spearman        20   0.5107
- SPEARMAN_TOP_25          spearman        25   0.5249
- SPEARMAN_TOP_30          spearman        30   0.5207
- SPEARMAN_TOP_40          spearman        40   0.5266
- SPEARMAN_TOP_50          spearman        50   0.5172
- MI_TOP_10                mi              10   0.5183
- MI_TOP_15                mi              15   0.5213
- MI_TOP_20                mi              20   0.5325
- MI_TOP_25                mi              25   0.5059
- MI_TOP_30                mi              30   0.5237
- MI_TOP_40                mi              40   0.5219
- MI_TOP_50                mi              50   0.5231
- MI_SPEARMAN_TOP_10       mi_spearman     10   0.4988
- MI_SPEARMAN_TOP_15       mi_spearman     15   0.5189
- MI_SPEARMAN_TOP_20       mi_spearman     20   0.5142
- MI_SPEARMAN_TOP_25       mi_spearman     25   0.5249
- MI_SPEARMAN_TOP_30       mi_spearman     30   0.5225
- MI_SPEARMAN_TOP_40       mi_spearman     40   0.5178
- MI_SPEARMAN_TOP_50       mi_spearman     50   0.5201
- ALL_56                   all             56   0.5118
+ SPEARMAN_TOP_10          spearman        10   0.5101
+ SPEARMAN_TOP_15          spearman        15   0.5231
+ SPEARMAN_TOP_20          spearman        20   0.5047
+ SPEARMAN_TOP_25          spearman        25   0.5237
+ SPEARMAN_TOP_30          spearman        30   0.5272
+ SPEARMAN_TOP_40          spearman        40   0.5260
+ SPEARMAN_TOP_50          spearman        50   0.5142
+ MI_TOP_10                mi              10   0.5172
+ MI_TOP_15                mi              15   0.5219
+ MI_TOP_20                mi              20   0.5320
+ MI_TOP_25                mi              25   0.5107
+ MI_TOP_30                mi              30   0.5201
+ MI_TOP_40                mi              40   0.5207
+ MI_TOP_50                mi              50   0.5071
+ MI_SPEARMAN_TOP_10       mi_spearman     10   0.5107
+ MI_SPEARMAN_TOP_15       mi_spearman     15   0.5195
+ MI_SPEARMAN_TOP_20       mi_spearman     20   0.5095
+ MI_SPEARMAN_TOP_25       mi_spearman     25   0.5201
+ MI_SPEARMAN_TOP_30       mi_spearman     30   0.5349
+ MI_SPEARMAN_TOP_40       mi_spearman     40   0.5201
+ MI_SPEARMAN_TOP_50       mi_spearman     50   0.5130
+ ALL_56                   all             56   0.5272
 
- Best case on train CV: MI_TOP_20 (20 features, CV_Acc=0.5325)
+ Best case on train CV: MI_SPEARMAN_TOP_30 (30 features, CV_Acc=0.5349)
 
  Best case by ranking family:
-  spearman      SPEARMAN_TOP_40          CV_Acc=0.5266
-  mi            MI_TOP_20                CV_Acc=0.5325
-  mi_spearman   MI_SPEARMAN_TOP_25       CV_Acc=0.5249
-  all           ALL_56                   CV_Acc=0.5118
+  spearman      SPEARMAN_TOP_30          CV_Acc=0.5272
+  mi            MI_TOP_20                CV_Acc=0.5320
+  mi_spearman   MI_SPEARMAN_TOP_30       CV_Acc=0.5349
+  all           ALL_56                   CV_Acc=0.5272
 
 ==========================================================================================
- 3. TRAIN ON MI_TOP_20 (20 features)
+ 3. TRAIN ON MI_SPEARMAN_TOP_30 (30 features)
 ==========================================================================================
 
 --- XGB ---
-  Best: {'reg_alpha': 0.1, 'n_estimators': 300, 'max_depth': 3, 'learning_rate': 0.01}
-  CV_Acc=0.5414 | Test: Acc=0.5190 F1m=0.4681 AUC=0.5312 (47.2s)
+  Best: {'reg_alpha': 0.1, 'n_estimators': 200, 'max_depth': 7, 'learning_rate': 0.01}
+  CV_Acc=0.5503 | Test: Acc=0.5012 F1m=0.4461 AUC=0.5247 (11.9s)
 
 --- GBM ---
-  Best: {'n_estimators': 200, 'min_samples_leaf': 10, 'max_depth': 3, 'learning_rate': 0.01}
-  CV_Acc=0.5473 | Test: Acc=0.5131 F1m=0.4762 AUC=0.5317 (347.3s)
+  Best: {'n_estimators': 500, 'min_samples_leaf': 5, 'max_depth': 5, 'learning_rate': 0.01}
+  CV_Acc=0.5308 | Test: Acc=0.5071 F1m=0.4513 AUC=0.5258 (93.3s)
 
 --- LGBM ---
-  Best: {'num_leaves': 15, 'n_estimators': 300, 'max_depth': 5, 'learning_rate': 0.01}
-  CV_Acc=0.5426 | Test: Acc=0.5083 F1m=0.4370 AUC=0.5479 (13.2s)
+  Best: {'num_leaves': 15, 'n_estimators': 200, 'max_depth': 7, 'learning_rate': 0.01}
+  CV_Acc=0.5337 | Test: Acc=0.5036 F1m=0.4667 AUC=0.5157 (2.3s)
 
 ==========================================================================================
  SUMMARY
 ==========================================================================================
 
- Best case on train CV: MI_TOP_20 (20 features)
+ Best case on train CV: MI_SPEARMAN_TOP_30 (30 features)
  Test model comparison:
-  Model  Test_Accuracy  Test_F1_macro  Test_AUC    CV_Acc  Time_s Selected_Case Ranking  N_Features
-1   XGB       0.519048       0.468088  0.531237  0.541420    47.2     MI_TOP_20      mi          20
-2   GBM       0.513095       0.476177  0.531682  0.547337   347.3     MI_TOP_20      mi          20
-3  LGBM       0.508333       0.437000  0.547858  0.542604    13.2     MI_TOP_20      mi          20
+  Model  Test_Accuracy  Test_F1_macro  Test_AUC    CV_Acc  Time_s       Selected_Case      Ranking  N_Features
+1   GBM       0.507143       0.451289  0.525817  0.530769    93.3  MI_SPEARMAN_TOP_30  mi_spearman          30
+2  LGBM       0.503571       0.466654  0.515681  0.533728     2.3  MI_SPEARMAN_TOP_30  mi_spearman          30
+3   XGB       0.501190       0.446059  0.524672  0.550296    11.9  MI_SPEARMAN_TOP_30  mi_spearman          30
 
- Final test (XGB selected on test): Acc=0.5190 F1m=0.4681 AUC=0.5312
+ Final test (GBM selected on test): Acc=0.5071 F1m=0.4513 AUC=0.5258
 
- Top 15 features used in MI_TOP_20:
+ Top 15 features used in MI_SPEARMAN_TOP_30:
     1. bb_width                       MI=0.0241 |Sp|=0.0252 Mix=0.6756
-    2. momentum_5                     MI=0.0215 |Sp|=0.0033 Mix=0.4691
-    3. yield_spread                   MI=0.0213 |Sp|=0.0072 Mix=0.4910
-    4. oil_return_lag5                MI=0.0171 |Sp|=0.0006 Mix=0.3587
-    5. day_of_week_cos                MI=0.0149 |Sp|=0.0282 Mix=0.5046
-    6. ma_10                          MI=0.0136 |Sp|=0.0191 Mix=0.4150
-    7. macd_signal                    MI=0.0128 |Sp|=0.0389 Mix=0.5369
-    8. fatalities_7d_log1p            MI=0.0118 |Sp|=0.0239 Mix=0.4121
-    9. ma_5_10_cross                  MI=0.0104 |Sp|=0.0417 Mix=0.5068
-   10. inventory_zscore               MI=0.0103 |Sp|=0.0358 Mix=0.4630
-   11. vix_return_slog1p              MI=0.0099 |Sp|=0.0046 Mix=0.2373
-   12. gdelt_volume_lag1_log1p        MI=0.0098 |Sp|=0.0456 Mix=0.5199
-   13. macd_cross                     MI=0.0082 |Sp|=0.0161 Mix=0.2821
-   14. day_of_week_sin                MI=0.0082 |Sp|=0.0717 Mix=0.6690
-   15. conflict_event_count_log1p     MI=0.0081 |Sp|=0.0643 Mix=0.6154
+    2. day_of_week_sin                MI=0.0082 |Sp|=0.0717 Mix=0.6690
+    3. conflict_event_count_log1p     MI=0.0081 |Sp|=0.0643 Mix=0.6154
+    4. gdelt_tone_30d                 MI=0.0080 |Sp|=0.0564 Mix=0.5592
+    5. macd_signal                    MI=0.0128 |Sp|=0.0389 Mix=0.5369
+    6. gdelt_volume_lag1_log1p        MI=0.0098 |Sp|=0.0456 Mix=0.5199
+    7. ma_5_10_cross                  MI=0.0104 |Sp|=0.0417 Mix=0.5068
+    8. day_of_week_cos                MI=0.0149 |Sp|=0.0282 Mix=0.5046
+    9. yield_spread                   MI=0.0213 |Sp|=0.0072 Mix=0.4910
+   10. gdelt_tone_7d                  MI=0.0054 |Sp|=0.0530 Mix=0.4813
+   11. momentum_5                     MI=0.0215 |Sp|=0.0033 Mix=0.4691
+   12. inventory_zscore               MI=0.0103 |Sp|=0.0358 Mix=0.4630
+   13. conflict_intensity_7d_log1p    MI=0.0000 |Sp|=0.0659 Mix=0.4593
+   14. inventory_change_pct           MI=0.0000 |Sp|=0.0625 Mix=0.4355
+   15. ma_10                          MI=0.0136 |Sp|=0.0191 Mix=0.4150
 
 ==========================================================================================
  DONE

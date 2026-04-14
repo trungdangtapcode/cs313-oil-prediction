@@ -1,0 +1,87 @@
+
+==========================================================================================
+ STEP 7: WEIGHT DECAY
+==========================================================================================
+  Seed: 42
+  Features: 50 (TOP_50)
+  Train: 2032 | Test: 840
+  Inner split for scheme selection: train=1694 | eval=338
+
+==========================================================================================
+ A) WEIGHT SCHEMES
+==========================================================================================
+  uniform              min=1.0000 max=1.0000 mean=1.0000
+  exp_hl100            min=0.0000 max=1.0000 mean=0.0712
+  exp_hl250            min=0.0036 max=1.0000 mean=0.1771
+  exp_hl500            min=0.0599 max=1.0000 mean=0.3340
+  exp_hl1000           min=0.2447 max=1.0000 mean=0.5366
+  linear_01            min=0.1000 max=1.0000 mean=0.5500
+  linear_03            min=0.3000 max=1.0000 mean=0.6500
+  linear_05            min=0.5000 max=1.0000 mean=0.7500
+  step_50pct_2x        min=1.0000 max=2.0000 mean=1.5000
+  step_50pct_3x        min=1.0000 max=3.0000 mean=2.0000
+  step_30pct_3x        min=1.0000 max=3.0000 mean=1.6004
+
+==========================================================================================
+ B) INNER TRAIN SELECTION GRID
+==========================================================================================
+
+ Scheme                 Model   Inner_Acc  Inner_F1m  Inner_AUC
+ --------------------------------------------------------------
+ uniform                GBM        0.5473     0.5399     0.5694
+ uniform                XGB        0.5562     0.5555     0.5903
+ uniform                LGBM       0.5917     0.5914     0.6009
+ exp_hl100              GBM        0.5030     0.4750     0.5641
+ exp_hl100              XGB        0.5976     0.5684     0.5987
+ exp_hl100              LGBM       0.5207     0.5051     0.5877
+ exp_hl250              GBM        0.5237     0.5232     0.5378
+ exp_hl250              XGB        0.5710     0.5696     0.5917
+ exp_hl250              LGBM       0.5651     0.5648     0.5893
+ exp_hl500              GBM        0.5237     0.5210     0.5574
+ exp_hl500              XGB        0.5355     0.5353     0.5688
+ exp_hl500              LGBM       0.5651     0.5649     0.5593
+ exp_hl1000             GBM        0.5533     0.5437     0.5961
+ exp_hl1000             XGB        0.5473     0.5418     0.5668
+ exp_hl1000             LGBM       0.5385     0.5379     0.5606
+ linear_01              GBM        0.5533     0.5499     0.5732
+ linear_01              XGB        0.5325     0.5325     0.5561
+ linear_01              LGBM       0.5799     0.5799     0.5647
+ linear_03              GBM        0.5385     0.5264     0.5832
+ linear_03              XGB        0.5680     0.5619     0.5853
+ linear_03              LGBM       0.5592     0.5591     0.5688
+ linear_05              GBM        0.5444     0.5324     0.5781
+ linear_05              XGB        0.5414     0.5380     0.5607
+ linear_05              LGBM       0.5651     0.5640     0.5754
+ step_50pct_2x          GBM        0.5740     0.5730     0.5823
+ step_50pct_2x          XGB        0.5503     0.5487     0.5852
+ step_50pct_2x          LGBM       0.5503     0.5493     0.5799
+ step_50pct_3x          GBM        0.5355     0.5352     0.5688
+ step_50pct_3x          XGB        0.5740     0.5730     0.6028
+ step_50pct_3x          LGBM       0.5296     0.5270     0.5814
+ step_30pct_3x          GBM        0.5621     0.5621     0.5865
+ step_30pct_3x          XGB        0.5444     0.5417     0.5915
+ step_30pct_3x          LGBM       0.5651     0.5648     0.5816
+
+==========================================================================================
+ C) FINAL TEST EVALUATION
+==========================================================================================
+  GBM: step_50pct_2x          InnerAcc=0.5740 TestAcc=0.5226
+  XGB: exp_hl100              InnerAcc=0.5976 TestAcc=0.5179
+  LGBM: uniform                InnerAcc=0.5917 TestAcc=0.5238
+
+ Best per model (scheme selected on inner train split):
+   LGBM: uniform                InnerAcc=0.5917 InnerF1m=0.5914 TestAcc=0.5238
+   GBM: step_50pct_2x          InnerAcc=0.5740 InnerF1m=0.5730 TestAcc=0.5226
+   XGB: exp_hl100              InnerAcc=0.5976 InnerF1m=0.5684 TestAcc=0.5179
+
+ Best overall (selected on test):
+   LGBM + uniform: InnerAcc=0.5917 InnerF1m=0.5914
+   Test: Acc=0.5238 F1m=0.4742 AUC=0.5548
+
+ Uniform baseline on inner train split:
+   LGBM: InnerAcc=0.5917 Improvement=+0.00%
+
+ Saved to ml/results/
+==========================================================================================
+ DONE
+==========================================================================================

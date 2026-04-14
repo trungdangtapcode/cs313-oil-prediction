@@ -1,4 +1,4 @@
 Target,Model,Test_Accuracy,Test_F1_macro,Test_AUC,CV_Acc,Params
-1d_raw,LGBM,0.525,0.5018719188394252,0.5305108959386835,0.5284023668639054,"{'n_estimators': 200, 'max_depth': 3, 'learning_rate': 0.01}"
-1d_t03,LGBM,0.5218023255813954,0.5169436364528803,0.5360203432930706,0.5311827956989248,"{'n_estimators': 200, 'max_depth': 3, 'learning_rate': 0.01}"
+1d_raw,XGB,0.5178571428571429,0.46367002937045076,0.5623256763191908,0.5349112426035503,"{'n_estimators': 200, 'max_depth': 5, 'learning_rate': 0.05}"
+1d_t03,LGBM,0.5058139534883721,0.4983357924716056,0.5321466412375504,0.5362007168458781,"{'n_estimators': 300, 'max_depth': 3, 'learning_rate': 0.01}"
 1d_t05,XGB,0.4910277324632953,0.4512715754682336,0.5345266354440666,0.5432,"{'n_estimators': 200, 'max_depth': 5, 'learning_rate': 0.05}"
