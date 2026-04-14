@@ -1,400 +1,417 @@
-# Current Pipeline vs `other_eda_preprocess`
+# Current Pipeline vs `other_eda_preprocess` (Full 6-Step View)
 
-## Purpose
+## Scope
 
-This document compares the current forecasting-oriented pipeline with the older
-`other_eda_preprocess` branch.
+This document compares the current repository with the full six-script workflow
+inside `other_eda_preprocess`.
 
-Short version:
+Important framing:
 
-- `other_eda_preprocess` is closer to an `EDA-first / same-day classification`
-  pipeline.
-- The current pipeline is a `forecasting / modeling-first` pipeline with extra
-  leakage cleanup and additional processing stages.
+- `other_eda_preprocess` is an `EDA / presentation` repository snapshot
+- the current repository is a broader `data pipeline + modeling` repository
 
----
+So the comparison must cover:
 
-## Executive Summary
+1. transformation
+2. reduction
+3. quality check
+4. EDA runner
+5. presentation plotting
+6. notebook generation
 
-| Area | `other_eda_preprocess` | Current pipeline |
-|---|---|---|
-| Core `step4` feature engineering | Almost the same | Almost the same |
-| Target definition | Same-day `direction = oil_return > 0` | Forward target `oil_return_fwd1 = oil_return.shift(-1)` |
-| Explicit leakage cleanup | No dedicated step | Yes, `step4b_fix_leakage.py` |
-| Deterministic post-processing | No | Yes, `step5b_processing.py` |
-| Baked scaled export | No | Yes, `step5c_processing.py` |
-| Modeling suitability | Moderate | Higher |
-| EDA readability of raw features | Higher | Slightly lower after transforms |
+and not just the final CSV.
 
 ---
 
-## Pipeline Mapping
+## High-Level Difference
 
-| Stage | `other_eda_preprocess` | Current pipeline | Main difference |
+### `other_eda_preprocess`
+
+The branch is explicitly documented as:
+
+- an EDA-focused project
+- stopping at EDA / presentation-ready analysis
+- not containing a completed modeling pipeline
+
+Reference:
+
+- [other_eda_preprocess/README.md](/home/vund/.svn/other_eda_preprocess/README.md:9)
+
+Its six active scripts are:
+
+1. `step4_transformation.py`
+2. `step5_reduction.py`
+3. `step6_quality_check.py`
+4. `eda_runner.py`
+5. `create_presentation_plots.py`
+6. `create_eda_notebook.py`
+
+### Current repository
+
+The current repository is broader:
+
+- raw-data ingestion scripts exist
+- cleaning and integration scripts exist
+- there is an explicit leakage-cleanup step
+- there is a deterministic processed export
+- there is a baked-scaled convenience export
+- there is a full `ml/classification` training pipeline
+
+Reference:
+
+- [scripts/PIPELINE_STEPS.md](/home/vund/.svn/scripts/PIPELINE_STEPS.md:1)
+
+---
+
+## Full Flow Mapping
+
+| `other_eda_preprocess` step | Purpose in that repo | Current counterpart | Main difference |
 |---|---|---|---|
-| Raw transform | `other_eda_preprocess/scripts/step4_transformation.py` | `scripts/step4_transformation.py` | Nearly identical backbone |
-| Reduction | `other_eda_preprocess/scripts/step5_reduction.py` | `scripts/step5_reduction.py` | Same reduction style |
-| Leakage cleanup | None | `scripts/step4b_fix_leakage.py` | Current pipeline drops contaminated columns before modeling |
-| Deterministic processed export | None | `scripts/step5b_processing.py` | Current pipeline adds `log1p`, `signed_log1p`, `sin/cos` |
-| Full-data scaled export | None | `scripts/step5c_processing.py` | Current pipeline can export a baked-scaled dataset |
+| `step4_transformation.py` | Build transformed features | `scripts/step4_transformation.py` | Backbone is almost the same |
+| `step5_reduction.py` | Build `dataset_final.csv` | `scripts/step5_reduction.py` and `scripts/step4b_fix_leakage.py` | Current repo adds leakage cleanup before final modeling export |
+| `step6_quality_check.py` | Console-only final checks | `scripts/step4b_fix_leakage.py`, `step6_quality_check.py`, upgraded EDA checks | Current repo is stricter on leakage, not just NaN/INF |
+| `eda_runner.py` | Main EDA reports / tables / figures | `eda_classification/eda_clf.py` and upgraded EDA batches | Current repo uses forward target and modeling-oriented EDA |
+| `create_presentation_plots.py` | Slide-ready plots | no single identical script; current repo uses EDA outputs and docs | Current repo does not freeze the same presentation assumptions |
+| `create_eda_notebook.py` | Generate notebook from final dataset | no direct equivalent | Current repo is more script-first than notebook-template-first |
 
 ---
 
-## 1. `step4` Backbone: Mostly the Same
-
-Both branches share the same general `step4` logic:
-
-- Market returns
-- Rolling windows
-- FRED features
-- EIA features
-- GDELT features
-- ACLED features
-- Stress index with `MinMaxScaler`
-- Lag features
-- Time features
-- Winsorization
-- Final cleanup
-
-Relevant files:
-
-- Current: `scripts/step4_transformation.py`
-- Other: `other_eda_preprocess/scripts/step4_transformation.py`
-
-Important note:
-
-- The similarity at `step4` means the same macro timing and stress-scaling risks
-  exist in both branches at this stage.
-
----
-
-## 2. Target Definition: This Is a Major Difference
+## 0. Upstream Coverage
 
 ### `other_eda_preprocess`
 
-The EDA runner defines the target as same-day direction:
+The README says the authoritative input is:
 
-- `direction = (oil_return > 0).astype(int)`
-- File: `other_eda_preprocess/scripts/eda_runner.py`
+- `data/processed/dataset_final.csv`
 
-Interpretation:
+Reference:
 
-- the branch is analyzing whether the current day is `UP` or `DOWN`
-- this is descriptive / same-day classification oriented
+- [other_eda_preprocess/README.md](/home/vund/.svn/other_eda_preprocess/README.md:34)
 
-### Current pipeline
+That means the repo snapshot begins effectively from:
 
-The current branch builds an explicit forward target:
+- transformed / reduced / EDA-ready data
 
-- `oil_return_fwd1 = oil_return.shift(-1)`
-- `oil_return_fwd1_date = date.shift(-1)`
-- File: `scripts/step4_transformation.py`
+It does not include a full visible step1-step3 raw-to-integrated pipeline inside
+that branch.
 
-Interpretation:
+### Current repository
 
-- features at time `T`
-- target at time `T+1`
-- this is forecasting oriented
+The current repository has explicit upstream stages:
 
-Practical effect:
+- raw ingestion
+- cleaning
+- integration
+- transformation
+- leakage cleanup
+- reduction
+- processed exports
+- training
 
-- `other_eda_preprocess` is easier to use for same-day EDA
-- the current pipeline is structurally more appropriate for predictive modeling
+Reference:
 
----
+- [scripts/PIPELINE_STEPS.md](/home/vund/.svn/scripts/PIPELINE_STEPS.md:1)
 
-## 3. Leakage Handling: The Current Pipeline Adds a Dedicated Cleanup Stage
+Main implication:
 
-### `other_eda_preprocess`
-
-There is no dedicated leakage-cleaning step between raw `step4` output and final
-dataset export.
-
-Its final dataset still keeps several columns that were flagged later as risky:
-
-- `cpi_lag`
-- `unemployment_lag`
-- `real_rate`
-- `fed_rate_change`
-- `fed_rate_regime`
-- `oil_volatility_7d`
-- `geopolitical_stress_index`
-
-### Current pipeline
-
-The current pipeline inserts `step4b_fix_leakage.py` before the final modeling
-dataset is built.
-
-File:
-
-- `scripts/step4b_fix_leakage.py`
-
-This step removes columns contaminated by:
-
-- monthly release timing leakage
-- derived-from-leaky-macro features
-- split leakage from stress scaling
-- global preprocessing leakage from winsorization
-
-Columns dropped in `step4b`:
-
-- `cpi_lag`
-- `unemployment_lag`
-- `fed_funds_rate_lag`
-- `cpi_yoy`
-- `real_rate`
-- `fed_rate_change`
-- `fed_rate_regime`
-- `stress_tone`
-- `stress_volume`
-- `stress_goldstein`
-- `geopolitical_stress_index`
-- `oil_volatility_7d`
-
-Practical effect:
-
-- the current pipeline is more conservative
-- it loses some macro/stress features
-- but it is cleaner for downstream modeling
+- `other_eda_preprocess` is easier to use as a self-contained EDA snapshot
+- the current repo is much better if you need end-to-end provenance
 
 ---
 
-## 4. Reduction Stage: Similar Style, Different Input Quality
-
-Both branches use a similar `step5_reduction` philosophy:
-
-- drop intermediate columns
-- drop weak binary flags
-- drop highly collinear feature groups
-- remove same-day close levels
-
-Files:
-
-- Current: `scripts/step5_reduction.py`
-- Other: `other_eda_preprocess/scripts/step5_reduction.py`
-
-Same-day market levels dropped by both reduction scripts:
-
-- `oil_close`
-- `usd_close`
-- `sp500_close`
-- `vix_close`
-
-But the key difference is upstream:
-
-- `other_eda_preprocess` runs reduction directly on the original transformed data
-- the current pipeline runs reduction after `step4b`, on a cleaner input
-
-So even if the reduction logic looks similar, the current final dataset is built
-from a stricter pre-filtered base.
-
----
-
-## 5. `step5b`: Deterministic Processing Exists Only in the Current Pipeline
-
-The current pipeline adds a deterministic processed dataset layer:
-
-- File: `scripts/step5b_processing.py`
-- Output: `data/processed/dataset_final_noleak_processed.csv`
-
-This stage intentionally uses only transforms that do not require fitting on the
-full dataset:
-
-- cyclical encoding for calendar features
-- `log1p` for heavy-tailed positive features
-- `signed_log1p` for selected signed heavy-tailed features
-
-### Current `step5b` transforms
-
-Calendar:
-
-- `day_of_week -> day_of_week_sin, day_of_week_cos`
-- `month -> month_sin, month_cos`
-
-`log1p`:
-
-- `gdelt_events -> gdelt_events_log1p`
-- `conflict_event_count -> conflict_event_count_log1p`
-- `conflict_intensity_7d -> conflict_intensity_7d_log1p`
-- `fatalities -> fatalities_log1p`
-- `fatalities_7d -> fatalities_7d_log1p`
-- `gdelt_volume_lag1 -> gdelt_volume_lag1_log1p`
-- `vix_lag1 -> vix_lag1_log1p`
-
-`signed_log1p`:
-
-- `net_imports_change_pct -> net_imports_change_pct_slog1p`
-- `production_change_pct -> production_change_pct_slog1p`
-- `vix_return -> vix_return_slog1p`
-
-The `other_eda_preprocess` branch has no equivalent stage. It keeps those
-features in their rawer form.
-
-Practical effect:
-
-- `other_eda_preprocess` is easier to inspect visually in raw EDA
-- `step5b` is usually better for modeling because the feature distributions are
-  less skewed
-
----
-
-## 6. `step5c`: Full-Data Scaled Export Exists Only in the Current Pipeline
-
-The current pipeline also adds a convenience scaled export:
-
-- File: `scripts/step5c_processing.py`
-- Output: `data/processed/dataset_final_noleak_step5c.csv`
-
-This step:
-
-1. rebuilds the `step5b`-style processed data
-2. applies imputation + scaling on the full feature matrix
-3. saves both the scaled CSV and a preprocessor artifact
-
-This uses groups defined in:
-
-- `ml/model_preprocessing.py`
-
-Current curated scaling groups:
-
-Standard:
-
-- `yield_spread`
-- `gdelt_goldstein`
-- `gdelt_goldstein_7d`
-- `usd_return`
-- `inventory_zscore`
-
-Robust:
-
-- `inventory_change_pct`
-- `oil_return`
-- `oil_return_lag1`
-- `oil_return_lag2`
-- `sp500_return`
-- `gdelt_events_log1p`
-- `conflict_event_count_log1p`
-- `conflict_intensity_7d_log1p`
-- `fatalities_log1p`
-- `fatalities_7d_log1p`
-- `gdelt_volume_lag1_log1p`
-- `vix_lag1_log1p`
-- `net_imports_change_pct_slog1p`
-- `production_change_pct_slog1p`
-- `vix_return_slog1p`
-
-Power:
-
-- `gdelt_tone_7d`
-- `gdelt_tone_30d`
-- `gdelt_tone_lag1`
-
-Passthrough:
-
-- `day_of_week_sin`
-- `day_of_week_cos`
-- `month_sin`
-- `month_cos`
-
-The `other_eda_preprocess` branch has no equivalent full curated scaling layer.
-
-Important caveat:
-
-- `step5c` is convenient for research and fixed offline experiments
-- but it is less strict than `step5b` for honest evaluation because scaling is
-  fit on the full dataset
-
----
-
-## 7. Dataset-Level Comparison
+## 1. Transformation Stage
 
 ### `other_eda_preprocess`
 
 File:
 
-- `other_eda_preprocess/data/processed/dataset_final.csv`
+- [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:1)
 
-Shape:
+This script does:
 
-- total columns: `33`
-- features excluding `date`: `32`
-
-Still includes:
-
-- `cpi_lag`
-- `unemployment_lag`
-- `real_rate`
-- `fed_rate_change`
-- `fed_rate_regime`
-- `oil_volatility_7d`
+- market returns
+- rolling windows
+- FRED-derived features
+- EIA-derived features
+- GDELT-derived features
+- ACLED-derived features
 - `geopolitical_stress_index`
+- lag features
+- time features
+- winsorization
+- final cleanup
 
-### Current `dataset_final_noleak.csv`
+### Current repository
 
 File:
 
-- `data/processed/dataset_final_noleak.csv`
+- [scripts/step4_transformation.py](/home/vund/.svn/scripts/step4_transformation.py:1)
 
-Shape:
+The backbone is almost identical.
 
-- total columns: `28`
-- features excluding `date`, `oil_return_fwd1`, `oil_return_fwd1_date`: `25`
+Important difference:
 
-Compared with `other_eda_preprocess`, it:
-
-- removes the leak-prone macro/stress/winsorized columns
-- adds forward target columns:
+- the current script also creates a forward target:
   - `oil_return_fwd1`
   - `oil_return_fwd1_date`
 
-### Current `step5b`
+Reference:
 
-File:
+- [scripts/step4_transformation.py](/home/vund/.svn/scripts/step4_transformation.py:446)
 
-- `data/processed/dataset_final_noleak_processed.csv`
+### Consequence
 
-Shape:
+At pure `step4` level:
 
-- total columns: `30`
-- modeling features: `27`
-
-Compared with `other_eda_preprocess`, it replaces raw columns with transformed
-versions:
-
-- `gdelt_events -> gdelt_events_log1p`
-- `conflict_event_count -> conflict_event_count_log1p`
-- `conflict_intensity_7d -> conflict_intensity_7d_log1p`
-- `fatalities -> fatalities_log1p`
-- `fatalities_7d -> fatalities_7d_log1p`
-- `gdelt_volume_lag1 -> gdelt_volume_lag1_log1p`
-- `vix_lag1 -> vix_lag1_log1p`
-- `net_imports_change_pct -> net_imports_change_pct_slog1p`
-- `production_change_pct -> production_change_pct_slog1p`
-- `vix_return -> vix_return_slog1p`
-- `day_of_week -> day_of_week_sin/day_of_week_cos`
-- `month -> month_sin/month_cos`
-
-### Current `step5c`
-
-File:
-
-- `data/processed/dataset_final_noleak_step5c_scaler.csv`
-
-Shape:
-
-- total columns: `30`
-- modeling features: `27`
-
-Schema:
-
-- same columns as `step5b`
-- values already imputed/scaled
+- both repos have almost the same feature-engineering DNA
+- the big structural change is target design:
+  - `other_eda_preprocess`: same-day direction analysis
+  - current repo: `T -> T+1` forecasting
 
 ---
 
-## 8. Direct Column Differences
+## 2. Reduction Stage
 
-### Present in `other_eda_preprocess` final, absent in current `dataset_final_noleak`
+### `other_eda_preprocess`
+
+File:
+
+- [other_eda_preprocess/scripts/step5_reduction.py](/home/vund/.svn/other_eda_preprocess/scripts/step5_reduction.py:41)
+
+This script builds:
+
+- `dataset_final.csv`
+
+It drops:
+
+- intermediate stress columns
+- weak binary columns
+- some macro collinearity columns
+- some raw supply columns
+- some GDELT redundancy
+- same-day close levels
+
+### Current repository
+
+File:
+
+- [scripts/step5_reduction.py](/home/vund/.svn/scripts/step5_reduction.py:41)
+
+The reduction logic is largely the same.
+
+But the current repo adds:
+
+- `step4b_fix_leakage.py`
+
+before reduction is used for modeling.
+
+Reference:
+
+- [scripts/step4b_fix_leakage.py](/home/vund/.svn/scripts/step4b_fix_leakage.py:3)
+
+### Consequence
+
+Reduction style is similar, but the input quality is different:
+
+- `other_eda_preprocess` reduces the original transformed dataset directly
+- the current repo can reduce a leakage-scrubbed dataset first
+
+That makes the current downstream exports materially cleaner.
+
+---
+
+## 3. Quality Check Stage
+
+### `other_eda_preprocess`
+
+File:
+
+- [other_eda_preprocess/scripts/step6_quality_check.py](/home/vund/.svn/other_eda_preprocess/scripts/step6_quality_check.py:1)
+
+This script checks:
+
+- NaN
+- INF
+- a small same-day leakage rule set
+- target distribution
+- train/test split
+- sample rows
+
+What it does well:
+
+- simple sanity check
+- quick shape / missing / split validation
+
+What it does not catch:
+
+- macro/FRED timing leakage
+- stress-feature split leakage
+- full-series winsorization leakage
+
+Its leakage check only looks for:
+
+- `vix_close`
+- `usd_close`
+- `sp500_close`
+
+Reference:
+
+- [other_eda_preprocess/scripts/step6_quality_check.py](/home/vund/.svn/other_eda_preprocess/scripts/step6_quality_check.py:69)
+
+### Current repository
+
+The current repo handles this differently:
+
+- leakage cleanup is done structurally in
+  [step4b_fix_leakage.py](/home/vund/.svn/scripts/step4b_fix_leakage.py:36)
+- deterministic processing is isolated in
+  [step5b_processing.py](/home/vund/.svn/scripts/step5b_processing.py:3)
+- model-time preprocessing groups are explicit in
+  [ml/model_preprocessing.py](/home/vund/.svn/ml/model_preprocessing.py:1)
+
+### Consequence
+
+`other_eda_preprocess/step6_quality_check.py` is useful as a basic sanity pass,
+but it is not a strong leakage audit.
+
+---
+
+## 4. Main EDA Stage
+
+### `other_eda_preprocess`
+
+File:
+
+- [other_eda_preprocess/scripts/eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:1)
+
+This is the core analysis script.
+
+It:
+
+- loads `dataset_final.csv`
+- derives `direction = (oil_return > 0)`
+- splits train/test at `2023-01-01`
+- runs data quality, target analysis, feature distributions, time-series tests,
+  feature-target tests, leakage/split checks, and summary export
+
+Target definition:
+
+- [other_eda_preprocess/scripts/eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:83)
+
+Its leakage table explicitly classifies some features as low/medium/high:
+
+- [other_eda_preprocess/scripts/eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:665)
+
+### Current repository
+
+The current repo's EDA is now centered around:
+
+- `eda_classification/eda_clf.py`
+
+and recent upgraded runs such as:
+
+- `eda_classification/step5_upgraded`
+
+The current EDA uses:
+
+- forward target semantics
+- target-date-based splitting
+- richer feature ranking
+- train/test shift analysis
+- leakage-oriented interpretation tied to the current no-leak datasets
+
+### Consequence
+
+`other_eda_preprocess/eda_runner.py` is strong for descriptive same-day EDA, but
+it is not aligned with the current forecasting-oriented data contracts.
+
+---
+
+## 5. Presentation Stage
+
+### `other_eda_preprocess`
+
+File:
+
+- [other_eda_preprocess/scripts/create_presentation_plots.py](/home/vund/.svn/other_eda_preprocess/scripts/create_presentation_plots.py:1)
+
+This script turns the EDA into slide-ready plots.
+
+It is valuable because:
+
+- it packages the narrative cleanly
+- it forces a concrete summary
+- it makes the repo presentation-friendly
+
+But it also freezes some assumptions into visuals and labels, including a
+leakage-risk table:
+
+- [other_eda_preprocess/scripts/create_presentation_plots.py](/home/vund/.svn/other_eda_preprocess/scripts/create_presentation_plots.py:527)
+
+### Current repository
+
+The current repo does not have one single identical presentation script.
+
+Instead it has:
+
+- richer EDA batches
+- markdown reports
+- training result reports
+
+### Consequence
+
+`other_eda_preprocess` is better if the immediate goal is slide generation.
+
+The current repo is better if the immediate goal is research that must stay
+consistent with the final modeling pipeline.
+
+---
+
+## 6. Notebook Generation Stage
+
+### `other_eda_preprocess`
+
+File:
+
+- [other_eda_preprocess/scripts/create_eda_notebook.py](/home/vund/.svn/other_eda_preprocess/scripts/create_eda_notebook.py:1)
+
+This script generates a notebook template around `dataset_final.csv`.
+
+It is useful because:
+
+- it standardizes notebook structure
+- it makes review easier for a human analyst
+
+But it inherits the same assumptions as the EDA runner.
+
+### Current repository
+
+The current repo is more script/report-first than notebook-template-first.
+
+There is no direct one-to-one notebook generator that anchors the full current
+pipeline.
+
+### Consequence
+
+`other_eda_preprocess` is more polished as an EDA presentation package.
+
+The current repo is more polished as an engineering pipeline.
+
+---
+
+## Final Dataset Comparison
+
+### `other_eda_preprocess`
+
+Main final file:
+
+- [other_eda_preprocess/data/processed/dataset_final.csv](/home/vund/.svn/other_eda_preprocess/data/processed/dataset_final.csv)
+
+Shape:
+
+- `33` total columns
+
+Still keeps final columns such as:
 
 - `cpi_lag`
 - `unemployment_lag`
@@ -404,98 +421,73 @@ Schema:
 - `oil_volatility_7d`
 - `geopolitical_stress_index`
 
-### Present in current `dataset_final_noleak`, absent in `other_eda_preprocess` final
+### Current repository
 
-- `oil_return_fwd1`
-- `oil_return_fwd1_date`
+Main modeling-oriented exports:
 
-### Present in current `step5b/step5c`, replacing raw forms from `other_eda_preprocess`
+- [dataset_final_noleak.csv](/home/vund/.svn/data/processed/dataset_final_noleak.csv)
+- [dataset_final_noleak_processed.csv](/home/vund/.svn/data/processed/dataset_final_noleak_processed.csv)
+- [dataset_final_noleak_step5c_scaler.csv](/home/vund/.svn/data/processed/dataset_final_noleak_step5c_scaler.csv)
 
-- `conflict_event_count_log1p`
-- `conflict_intensity_7d_log1p`
-- `fatalities_log1p`
-- `fatalities_7d_log1p`
-- `gdelt_events_log1p`
-- `gdelt_volume_lag1_log1p`
-- `vix_lag1_log1p`
-- `net_imports_change_pct_slog1p`
-- `production_change_pct_slog1p`
-- `vix_return_slog1p`
-- `day_of_week_sin`
-- `day_of_week_cos`
-- `month_sin`
-- `month_cos`
+The current repo can therefore separate:
+
+- no-leak reduced export
+- deterministic processed export
+- baked-scaled convenience export
+
+`other_eda_preprocess` has only one main final dataset.
 
 ---
 
-## 9. Leakage and Modeling Consequences
+## Strengths of `other_eda_preprocess`
 
-### `other_eda_preprocess`
+It is worth being precise here. The branch is not simply "bad".
 
-Pros:
+It is strong at:
 
-- easier to inspect as a raw EDA-oriented dataset
-- preserves more original-looking features
+- fast EDA onboarding
+- self-contained presentation outputs
+- clear same-day target narrative
+- notebook generation for review
+- concise exploratory reporting
 
-Cons:
+If the task is:
 
-- keeps macro/FRED timing-risk columns
-- keeps `geopolitical_stress_index` built from stress components scaled before
-  strict train-only preprocessing
-- keeps `oil_volatility_7d` that was clipped using full-series statistics
-- uses same-day direction logic in EDA, not forward forecasting
+- explain the dataset
+- produce EDA figures
+- create presentation material
 
-### Current pipeline
-
-Pros:
-
-- explicitly designed for `T -> T+1` forecasting
-- has a dedicated leakage cleanup stage
-- separates deterministic processing from fit-based scaling
-- supports two final forms:
-  - `step5b` for stricter evaluation
-  - `step5c` for convenience research
-
-Cons:
-
-- more conservative feature set
-- some raw EDA intuition is lost after `log1p/slog1p/sin-cos`
-- `step5c` is convenient but not the strictest leakage-safe evaluation dataset
+then `other_eda_preprocess` is a good branch.
 
 ---
 
-## 10. Recommended Usage
+## Strengths of the Current Repository
 
-Use `other_eda_preprocess` when:
+The current repository is stronger when the task is:
 
-- you want descriptive EDA
-- you want to inspect rawer features quickly
-- you are not treating that dataset as the final forecasting dataset
+- trace provenance from raw data
+- build forecasting targets
+- control leakage more explicitly
+- separate deterministic processing from fit-based preprocessing
+- train actual models on curated exports
 
-Use the current pipeline when:
-
-- you want a forecasting-oriented dataset
-- you want explicit leakage cleanup
-- you want a cleaner training path
-
-Recommended current exports:
-
-- stricter evaluation: `data/processed/dataset_final_noleak_processed.csv`
-- convenience scaled research/training: `data/processed/dataset_final_noleak_step5c_scaler.csv`
+That is why the current branch is more appropriate for machine learning.
 
 ---
 
-## Final Takeaway
+## Bottom Line
 
-`other_eda_preprocess` is essentially the older `step4 + step5` lineage, aimed
-more at interpretability and same-day EDA.
+`other_eda_preprocess` is best understood as:
 
-The current pipeline starts from the same backbone, but adds:
+- a six-script EDA and presentation workflow built around
+  `dataset_final.csv`
 
-- `step4b`: leakage cleanup by dropping contaminated columns
-- `step5b`: deterministic feature reshaping
-- `step5c`: optional baked scaling export
-- forward target construction for real `T -> T+1` forecasting
+The current repository is best understood as:
 
-That is why the current branch is materially better suited for machine learning,
-even though the older branch may still look richer or more intuitive for raw EDA.
+- a broader engineering pipeline that starts earlier, cleans more aggressively,
+  supports no-leak exports, and continues into training
+
+So the two repos are not direct substitutes:
+
+- `other_eda_preprocess` is stronger as an EDA package
+- the current repository is stronger as a forecasting / ML pipeline

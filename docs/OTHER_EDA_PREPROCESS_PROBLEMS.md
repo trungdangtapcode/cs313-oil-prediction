@@ -1,73 +1,103 @@
-# Problems in `other_eda_preprocess`
+# Problems in `other_eda_preprocess` (Full 6-Step Review)
 
 ## Scope
 
-This document summarizes the main problems in the `other_eda_preprocess`
-pipeline.
+This document reviews the full six-script workflow inside
+`other_eda_preprocess`, not just its final CSV.
 
-Important distinction:
+Reviewed scripts:
 
-- if the branch is used only for descriptive EDA, some of these issues are less
-  severe
-- if it is used as a modeling or forecasting dataset, these issues become
-  material
+1. `step4_transformation.py`
+2. `step5_reduction.py`
+3. `step6_quality_check.py`
+4. `eda_runner.py`
+5. `create_presentation_plots.py`
+6. `create_eda_notebook.py`
 
----
+Important framing:
 
-## 1. No Dedicated Leakage-Cleanup Stage
+- the branch is explicitly EDA-focused
+- many of the issues below become severe only when the branch is reused as a
+  forecasting or model-training pipeline
 
-The branch goes from feature engineering in
-`other_eda_preprocess/scripts/step4_transformation.py` straight into reduction in
-`other_eda_preprocess/scripts/step5_reduction.py`.
+Reference:
 
-There is no equivalent of the current pipeline's `step4b_fix_leakage.py`.
-
-Consequence:
-
-- columns with known timing or preprocessing contamination remain in the final
-  dataset
-- the final dataset is not a conservative modeling-safe export
+- [other_eda_preprocess/README.md](/home/vund/.svn/other_eda_preprocess/README.md:9)
 
 ---
 
-## 2. Direct Target Leakage Risk If Used for Classification Training
+## Problem 1. The Branch Starts Too Late in the Pipeline
 
-In the EDA runner, the target is defined as:
+The README says the authoritative input is:
 
-- `direction = (oil_return > 0).astype(int)`
-- file: [eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:83)
+- `data/processed/dataset_final.csv`
 
-But in the reduced final dataset, `oil_return` is still kept:
+Reference:
 
-- `oil_return` is not dropped in
-  [step5_reduction.py](/home/vund/.svn/other_eda_preprocess/scripts/step5_reduction.py:55)
+- [other_eda_preprocess/README.md](/home/vund/.svn/other_eda_preprocess/README.md:34)
+
+The branch includes:
+
+- `step4_transformation.py`
+- `step5_reduction.py`
+- `step6_quality_check.py`
+- EDA/presentation scripts
+
+But it does not expose a full step1-step3 raw-to-integrated pipeline within that
+branch.
 
 Why this is a problem:
 
-- if someone takes `dataset_final.csv` and trains a classifier for `direction`
-  without carefully removing `oil_return`, the target is effectively encoded in
-  a feature
-- that is a direct leakage path
+- provenance is incomplete inside the branch
+- reproducing the entire final dataset from raw sources is less transparent
+- it is harder to audit upstream assumptions
 
-Practical impact:
+Severity:
 
-- this is one of the most serious problems if the dataset is reused outside the
-  original EDA notebook/script assumptions
+- medium for EDA-only use
+- high for research reproducibility
 
 ---
 
-## 3. Macro / FRED Release-Timing Leakage
+## Problem 2. Same-Day Target Design Is Easy to Misuse
 
-The branch builds FRED-derived features in
-[step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:122).
+The branch defines the target as:
 
-The key issue is that CPI-derived features are forward-filled directly onto the
-daily timeline:
+- `direction = (oil_return > 0).astype(int)`
 
-- `cpi_yoy` is reindexed with `method="ffill"` at
-  [step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:143)
+References:
 
-Related features are then derived from monthly macro columns:
+- [other_eda_preprocess/README.md](/home/vund/.svn/other_eda_preprocess/README.md:5)
+- [other_eda_preprocess/scripts/eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:83)
+
+This is a same-day target, not a forward target.
+
+Why this is a problem:
+
+- it is acceptable for descriptive EDA
+- but it is not a proper `T -> T+1` forecasting target
+- downstream users can easily assume the dataset is forecasting-ready when it is
+  not
+
+Severity:
+
+- low for descriptive EDA
+- high for predictive ML
+
+---
+
+## Problem 3. `step4_transformation.py` Keeps Macro / FRED Timing Leakage
+
+The FRED feature construction happens in:
+
+- [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:122)
+
+`cpi_yoy` is built from raw monthly FRED data and forward-filled onto the daily
+timeline:
+
+- [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:143)
+
+Derived macro features are then built from those monthly columns:
 
 - `fed_rate_change`
 - `fed_rate_regime`
@@ -75,9 +105,8 @@ Related features are then derived from monthly macro columns:
 
 Why this is a problem:
 
-- monthly macro data are treated as available too early on the daily timeline
-- the dataset assumes the new monthly value is visible before the real release
-  timing is fully respected
+- monthly macro values are treated as available too early on the daily axis
+- this creates temporal / feature leakage risk
 
 Affected final columns:
 
@@ -87,27 +116,28 @@ Affected final columns:
 - `fed_rate_change`
 - `fed_rate_regime`
 
-Consequence:
+Severity:
 
-- if the dataset is used for forecasting, these macro columns are not timing-safe
+- high for forecasting or honest test evaluation
 
 ---
 
-## 4. Split Leakage in `geopolitical_stress_index`
+## Problem 4. `step4_transformation.py` Has Split Leakage in Stress Features
 
-The stress block is created in
-[step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:291).
+The stress block is built in:
 
-The code fits `MinMaxScaler` on all rows before `2023-01-01`:
+- [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:291)
 
-- see [step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:303)
-- scaler fit happens at [step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:319)
+It fits `MinMaxScaler` on all rows before `2023-01-01`:
+
+- [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:303)
+- [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:319)
 
 Why this is a problem:
 
-- the transformation is not fit strictly on a pure training fold
-- if 2022 is later used as validation, the feature has already absorbed
-  validation-period distribution information
+- the scaler is not fit inside a train-only modeling pipeline
+- if 2022 is used as validation later, that validation distribution already
+  influenced the transformed features
 
 Affected columns:
 
@@ -116,208 +146,353 @@ Affected columns:
 - `stress_goldstein`
 - `geopolitical_stress_index`
 
-Consequence:
+Severity:
 
-- this is not row-level future leakage
-- but it is still a train/validation contamination risk
+- medium for EDA
+- medium/high for train/validation integrity
 
 ---
 
-## 5. Full-Series Winsorization Leakage
+## Problem 5. `step4_transformation.py` Uses Full-Series Winsorization
 
-`oil_volatility_7d` is built from rolling volatility and then clipped using the
-99th percentile of the full series:
+`oil_volatility_7d` is created as a rolling volatility feature and then clipped
+using the 99th percentile of the full series:
 
-- volatility feature creation:
-  [step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:95)
+- feature creation:
+  [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:95)
 - clipping:
-  [step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:389)
+  [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:389)
 
 Why this is a problem:
 
-- early rows are clipped using a threshold learned from future data
-- this introduces full-series preprocessing leakage
+- early rows are clipped using future distribution information
+- this is a form of preprocessing leakage
 
 Affected final column:
 
 - `oil_volatility_7d`
 
-Consequence:
+Severity:
 
-- the feature is not strictly train-only transformed
+- medium
 
 ---
 
-## 6. Same-Day Feature Availability Risk
+## Problem 6. `step4_transformation.py` Does Broad Forward-Fill Across All Features
 
-Market returns are computed from current-day closes:
+Final cleanup forward-fills all non-date columns:
 
-- `oil_return`
-- `usd_return`
-- `sp500_return`
-- `vix_return`
-- file:
-  [step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:50)
-
-The reduction step drops same-day close levels:
-
-- `oil_close`, `usd_close`, `sp500_close`, `vix_close`
-- file:
-  [step5_reduction.py](/home/vund/.svn/other_eda_preprocess/scripts/step5_reduction.py:85)
-
-But it keeps same-day returns:
-
-- `oil_return`
-- `usd_return`
-- `sp500_return`
-- `vix_return`
+- [other_eda_preprocess/scripts/step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:422)
 
 Why this is a problem:
 
-- for same-day descriptive EDA, this is fine
-- for a strict forecasting setup, these are only valid if prediction happens
-  after day-end data are fully known
+- the fill policy is very broad
+- it is not feature-specific
+- it can smear stale values across multiple feature types
 
-Consequence:
+This is not classical future leakage, but it weakens feature semantics.
 
-- the branch does not enforce a clear feature-availability contract
-- it is easy to misuse the data in an intraday or pre-close setting
+Severity:
+
+- medium
 
 ---
 
-## 7. Aggressive Forward-Fill Across All Non-Date Columns
+## Problem 7. `step5_reduction.py` Does Not Produce a Modeling-Safe Final Dataset
 
-Final cleanup forward-fills all non-date columns with `limit=3`:
+Reduction happens in:
 
-- [step4_transformation.py](/home/vund/.svn/other_eda_preprocess/scripts/step4_transformation.py:422)
+- [other_eda_preprocess/scripts/step5_reduction.py](/home/vund/.svn/other_eda_preprocess/scripts/step5_reduction.py:41)
+
+This script drops:
+
+- intermediate columns
+- same-day close levels
+- some collinear groups
+
+But it still leaves important risky columns in `dataset_final.csv`, including:
+
+- `cpi_lag`
+- `unemployment_lag`
+- `real_rate`
+- `fed_rate_change`
+- `fed_rate_regime`
+- `oil_volatility_7d`
+- `geopolitical_stress_index`
 
 Why this is a problem:
 
-- the fill is broad and not column-specific
-- it can smear previous values into rows where a feature may be temporarily
-  unavailable
-- this is not classical future leakage, but it can still distort feature meaning
+- the final export is not conservative enough for modeling
+- there is no separate no-leak final dataset
 
-Consequence:
+Severity:
 
-- feature semantics become less strict
-- data quality becomes more assumption-heavy
+- high
 
 ---
 
-## 8. No Deterministic Post-Processing Layer for Heavy-Tail Features
+## Problem 8. `step5_reduction.py` Still Leaves `oil_return` in the Final Dataset
 
-The branch stops after reduction and does not add a deterministic processing
-stage like the current pipeline's `step5b`.
+`oil_return` is not removed by reduction:
 
-So raw heavy-tailed columns remain in the final dataset, for example:
+- [other_eda_preprocess/scripts/step5_reduction.py](/home/vund/.svn/other_eda_preprocess/scripts/step5_reduction.py:55)
 
-- `gdelt_events`
-- `conflict_event_count`
-- `conflict_intensity_7d`
-- `fatalities`
-- `fatalities_7d`
-- `gdelt_volume_lag1`
-- `net_imports_change_pct`
-- `production_change_pct`
-- `vix_return`
-- `day_of_week`
-- `month`
+But the EDA target is derived directly from `oil_return`:
+
+- [other_eda_preprocess/scripts/eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:83)
 
 Why this is a problem:
 
-- these distributions are harder for many models
-- skew and tail behavior remain untreated
-- the dataset is less modeling-friendly out of the box
+- if someone trains a classifier on `dataset_final.csv` for `direction` and
+  forgets to drop `oil_return`, the target source is present in the feature set
+- this is a direct target leakage risk
 
-Consequence:
+Severity:
 
-- extra preprocessing is still needed before many ML experiments
+- very high
 
 ---
 
-## 9. No Separate Modeling-Safe Export
+## Problem 9. `step6_quality_check.py` Under-Detects Leakage
 
-The branch has one main reduced dataset:
+Quality check file:
+
+- [other_eda_preprocess/scripts/step6_quality_check.py](/home/vund/.svn/other_eda_preprocess/scripts/step6_quality_check.py:1)
+
+Its leakage rule only checks for same-day columns like:
+
+- `vix_close`
+- `usd_close`
+- `sp500_close`
+
+Reference:
+
+- [other_eda_preprocess/scripts/step6_quality_check.py](/home/vund/.svn/other_eda_preprocess/scripts/step6_quality_check.py:69)
+
+It then prints:
+
+- `No obvious data leakage detected`
+
+Reference:
+
+- [other_eda_preprocess/scripts/step6_quality_check.py](/home/vund/.svn/other_eda_preprocess/scripts/step6_quality_check.py:85)
+
+Why this is a problem:
+
+- it misses the macro timing issue
+- it misses stress-feature split leakage
+- it misses full-series winsorization leakage
+
+Severity:
+
+- high, because it can create false confidence
+
+---
+
+## Problem 10. `eda_runner.py` Reinforces the Same-Day Framing
+
+The main analysis file:
+
+- [other_eda_preprocess/scripts/eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:1)
+
+does good descriptive EDA, but it is built around:
+
+- same-day target definition
+- same-day feature interpretation
+- same-day split narrative
+
+Its leakage table marks the following as low risk:
+
+- `oil_volatility_7d`
+- `geopolitical_stress_index`
+- `cpi_lag`
+- `unemployment_lag`
+- `fed_rate_change`
+
+Reference:
+
+- [other_eda_preprocess/scripts/eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:665)
+
+Why this is a problem:
+
+- those labels are too optimistic for a strict forecasting setup
+- the script acknowledges same-day market returns as medium risk, but is too lax
+  on macro/stress/preprocessing issues
+
+Severity:
+
+- medium/high
+
+---
+
+## Problem 11. `eda_runner.py` Uses Contaminated Features in Recommendations
+
+The summary section recommends ideas such as:
+
+- `real_rate × geopolitical_stress_index`
+- `high_vol_regime = (oil_volatility_7d > Q75)`
+
+Reference:
+
+- [other_eda_preprocess/scripts/eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:827)
+
+Why this is a problem:
+
+- the recommendations are built on features that are already risky
+- this can push future modeling work toward contaminated features instead of
+  cleaner alternatives
+
+Severity:
+
+- medium
+
+---
+
+## Problem 12. `create_presentation_plots.py` Freezes Misleading Leakage Labels
+
+Presentation plot generator:
+
+- [other_eda_preprocess/scripts/create_presentation_plots.py](/home/vund/.svn/other_eda_preprocess/scripts/create_presentation_plots.py:1)
+
+Its leakage-risk table labels:
+
+- `oil_volatility_7d` as low
+- `cpi_lag` as low / safe
+- `geopolitical_stress` as low
+
+Reference:
+
+- [other_eda_preprocess/scripts/create_presentation_plots.py](/home/vund/.svn/other_eda_preprocess/scripts/create_presentation_plots.py:530)
+
+Why this is a problem:
+
+- those labels are then turned into presentation-ready visuals
+- the slide deck can unintentionally communicate incorrect safety claims
+
+This is worse than a code-only issue, because it affects narrative and decision
+making.
+
+Severity:
+
+- high for communication quality
+
+---
+
+## Problem 13. `create_eda_notebook.py` Contains a Target-Definition Mismatch
+
+Notebook generator:
+
+- [other_eda_preprocess/scripts/create_eda_notebook.py](/home/vund/.svn/other_eda_preprocess/scripts/create_eda_notebook.py:1)
+
+The title says:
+
+- prediction of next-day oil direction
+
+Reference:
+
+- [other_eda_preprocess/scripts/create_eda_notebook.py](/home/vund/.svn/other_eda_preprocess/scripts/create_eda_notebook.py:18)
+
+But the notebook code defines:
+
+- `direction = (oil_return > 0).astype(int)`
+
+Reference:
+
+- [other_eda_preprocess/scripts/create_eda_notebook.py](/home/vund/.svn/other_eda_preprocess/scripts/create_eda_notebook.py:71)
+
+Why this is a problem:
+
+- the narrative says "next day"
+- the code implements same-day direction
+- this creates conceptual inconsistency for anyone reading the notebook without
+  tracing the code carefully
+
+Severity:
+
+- medium
+
+---
+
+## Problem 14. One Final CSV Is Asked to Serve Too Many Roles
+
+The branch centers everything on:
 
 - `other_eda_preprocess/data/processed/dataset_final.csv`
 
-But it does not separate:
+That single dataset is used as:
 
-- descriptive EDA dataset
-- strict modeling dataset
-- deterministic processed dataset
-- baked-scaled convenience dataset
-
-Why this is a problem:
-
-- one file is asked to serve too many purposes
-- downstream users can easily assume it is safe for training when it is not
-
-Consequence:
-
-- higher risk of accidental misuse
-
----
-
-## 10. Same-Day EDA Orientation Instead of Forecasting Orientation
-
-The branch is built around same-day direction analysis:
-
-- target is derived from `oil_return` itself
-- file:
-  [eda_runner.py](/home/vund/.svn/other_eda_preprocess/scripts/eda_runner.py:83)
-
-It does not create a forward target like:
-
-- `oil_return_fwd1`
-- `oil_return_fwd1_date`
+- final reduced dataset
+- quality-check input
+- EDA input
+- presentation input
+- notebook input
 
 Why this is a problem:
 
-- it is fine for descriptive same-day EDA
-- but it is not aligned with a real `T -> T+1` forecasting workflow
+- there is no separate:
+  - raw transformed dataset
+  - no-leak modeling dataset
+  - deterministic processed dataset
+  - baked-scaled convenience dataset
 
-Consequence:
+This makes misuse more likely.
 
-- the branch is structurally weaker for predictive ML than the current pipeline
+Severity:
+
+- high from an engineering perspective
 
 ---
 
-## Severity Summary
+## Severity by Script
 
-### High severity for modeling
+| Script | Main issue |
+|---|---|
+| `step4_transformation.py` | macro timing leakage, stress split leakage, full-series winsorization, broad forward-fill |
+| `step5_reduction.py` | final dataset still not modeling-safe, leaves `oil_return` in export |
+| `step6_quality_check.py` | leakage checks are too weak and can produce false confidence |
+| `eda_runner.py` | strong descriptive EDA, but same-day framing and optimistic leakage labels |
+| `create_presentation_plots.py` | presentation layer freezes misleading risk labels |
+| `create_eda_notebook.py` | notebook says next-day prediction but implements same-day target |
 
-- direct target leakage risk through `oil_return`
-- macro/FRED release-timing leakage
-- no dedicated modeling-safe export
+---
 
-### Medium severity
+## What `other_eda_preprocess` Is Still Good For
 
-- stress-feature split leakage
-- full-series winsorization of `oil_volatility_7d`
-- unclear same-day feature availability assumptions
+Despite the problems above, the branch is still useful for:
 
-### Lower severity but still important
+- fast descriptive EDA
+- generating presentation-ready figures
+- communicating exploratory findings
+- notebook-based review
 
-- broad forward-fill assumptions
-- no deterministic post-processing layer
-- EDA-first structure encourages reuse in settings it was not designed for
+It becomes problematic when treated as:
+
+- a clean forecasting dataset
+- a strict leakage-safe modeling dataset
+- a final ML pipeline
 
 ---
 
 ## Final Takeaway
 
-`other_eda_preprocess` is acceptable as an exploratory branch for descriptive
-EDA, but it has several structural problems if reused as a forecasting or model
-training dataset:
+`other_eda_preprocess` is not broken as an EDA branch.
 
-- it keeps leak-prone macro/stress/preprocessed features
-- it mixes same-day target logic with reusable feature exports
-- it lacks a dedicated leakage-cleanup step
-- it does not separate EDA data from model-safe data
+Its real problem is that:
 
-In short:
+- it is easy to mistake an EDA/presentation workflow for a modeling-safe data
+  pipeline
 
-- good for exploration
-- unsafe to treat as the final forecasting dataset without extra cleanup
+Across the full six-step workflow, the main issues are:
+
+- same-day target framing
+- macro timing leakage
+- stress split leakage
+- full-series preprocessing leakage
+- weak final leakage checks
+- misleading risk communication in presentation artifacts
+- no separate model-safe export
+
+So the right interpretation is:
+
+- acceptable for exploration and slides
+- unsafe to treat as the final forecasting pipeline without additional cleanup
