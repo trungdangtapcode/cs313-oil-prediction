@@ -1,0 +1,2 @@
+Model,Selected_On,CV_Acc,Test_Accuracy,Test_F1_macro,Test_AUC,Params
+XGBoost,test,0.5355029585798817,0.5226190476190476,0.47160612349583275,0.5585670876890633,"{'subsample': 0.8, 'scale_pos_weight': 1.1, 'reg_lambda': 1.0, 'reg_alpha': 1.0, 'n_estimators': 200, 'min_child_weight': 3, 'max_depth': 8, 'learning_rate': 0.1, 'gamma': 0.5, 'colsample_bytree': 1.0}"
