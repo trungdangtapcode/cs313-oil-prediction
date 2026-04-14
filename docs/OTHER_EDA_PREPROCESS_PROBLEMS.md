@@ -456,6 +456,30 @@ Severity:
 
 ---
 
+## Final Dataset Risk Table
+
+The final file used by the branch is:
+
+- `other_eda_preprocess/data/processed/dataset_final.csv`
+
+Below is the practical risk table for the final dataset itself.
+
+| Column | Leak type | Severity | Recommended action | Why |
+|---|---|---|---|---|
+| `oil_return` | `target_source_risk` | `very_high` | `must_drop_if_target_is_direction` | Target direction is derived directly from `oil_return`. |
+| `cpi_lag` | `macro_release_timing` | `high` | `drop` | Monthly CPI is exposed too early on the daily timeline. |
+| `unemployment_lag` | `macro_release_timing` | `high` | `drop` | Monthly unemployment is exposed too early on the daily timeline. |
+| `real_rate` | `derived_macro_timing` | `high` | `drop` | Derived from monthly macro inputs that are visible too early. |
+| `fed_rate_change` | `derived_macro_timing` | `medium_high` | `drop_or_retime` | Derived from `fed_funds_rate_lag` timing assumptions. |
+| `fed_rate_regime` | `derived_macro_timing` | `medium_high` | `drop_or_retime` | Derived from `fed_funds_rate_lag` timing assumptions. |
+| `geopolitical_stress_index` | `split_leakage` | `medium` | `drop_for_strict_eval` | Built from stress features scaled outside a pure train-only modeling fold. |
+| `oil_volatility_7d` | `global_preprocessing` | `medium` | `drop_for_strict_eval` | Clipped using a full-series quantile, so early rows use future distribution information. |
+| `usd_return` | `same_day_availability` | `medium` | `keep_only_for_eod` | Same-day return is only valid if prediction happens after close. |
+| `sp500_return` | `same_day_availability` | `medium` | `keep_only_for_eod` | Same-day return is only valid if prediction happens after close. |
+| `vix_return` | `same_day_availability` | `medium` | `keep_only_for_eod` | Same-day return is only valid if prediction happens after close. |
+
+---
+
 ## What `other_eda_preprocess` Is Still Good For
 
 Despite the problems above, the branch is still useful for:
