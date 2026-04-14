@@ -1,0 +1,26 @@
+source_feature,output_feature,transform,skew_before,skew_after,recommended_model_time_scaler,why
+day_of_week,"day_of_week_sin, day_of_week_cos",cyclical_encoding,-0.0006053892940546168,,none_or_optional_standard,Calendar feature encoded as sin/cos with period=5.
+month,"month_sin, month_cos",cyclical_encoding,0.017222841514543608,,none_or_optional_standard,Calendar feature encoded as sin/cos with period=12.
+gdelt_goldstein,gdelt_goldstein,keep,-0.525778145894184,-0.525778145894184,StandardScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+gdelt_goldstein_7d,gdelt_goldstein_7d,keep,-0.5853413252579475,-0.5853413252579475,StandardScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+gdelt_tone_30d,gdelt_tone_30d,keep,3.065328945443207,3.065328945443207,PowerTransformer(Yeo-Johnson),Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+gdelt_tone_7d,gdelt_tone_7d,keep,2.3964654956427713,2.3964654956427713,PowerTransformer(Yeo-Johnson),Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+gdelt_tone_lag1,gdelt_tone_lag1,keep,1.8779880409502074,1.8779880409502074,PowerTransformer(Yeo-Johnson),Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+inventory_change_pct,inventory_change_pct,keep,0.2932574409256415,0.2932574409256415,RobustScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+inventory_zscore,inventory_zscore,keep,0.1968009696985097,0.1968009696985097,already_zscore_or_StandardScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+oil_return,oil_return,keep,-0.36568769058036743,-0.36568769058036743,RobustScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+oil_return_lag1,oil_return_lag1,keep,-0.3645345573649692,-0.3645345573649692,RobustScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+oil_return_lag2,oil_return_lag2,keep,-0.36588127367548484,-0.36588127367548484,RobustScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+sp500_return,sp500_return,keep,-0.3635863157231999,-0.3635863157231999,RobustScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+usd_return,usd_return,keep,-0.1344532687915208,-0.1344532687915208,StandardScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+yield_spread,yield_spread,keep,-0.22399434060956278,-0.22399434060956278,StandardScaler,Kept as-is in dataset. Any fit-based scaler should be applied inside the model pipeline only.
+conflict_event_count,conflict_event_count_log1p,log1p,2.550049512005637,-0.6833745253229269,StandardScaler_or_RobustScaler,Positive heavy-tail feature compressed with log1p.
+conflict_intensity_7d,conflict_intensity_7d_log1p,log1p,0.7419851903329449,-1.9957549606943874,StandardScaler_or_RobustScaler,Positive heavy-tail feature compressed with log1p.
+fatalities,fatalities_log1p,log1p,21.48071962988884,-0.2626355522346886,StandardScaler_or_RobustScaler,Positive heavy-tail feature compressed with log1p.
+fatalities_7d,fatalities_7d_log1p,log1p,13.850610426387288,-0.34341135678109413,StandardScaler_or_RobustScaler,Positive heavy-tail feature compressed with log1p.
+gdelt_events,gdelt_events_log1p,log1p,1.2547394560781067,-0.23939636569360365,StandardScaler_or_RobustScaler,Positive heavy-tail feature compressed with log1p.
+gdelt_volume_lag1,gdelt_volume_lag1_log1p,log1p,-0.20331541071637663,-0.3481360331652037,StandardScaler_or_RobustScaler,Positive heavy-tail feature compressed with log1p.
+vix_lag1,vix_lag1_log1p,log1p,2.598170175611776,0.7993256593192026,StandardScaler_or_RobustScaler,Positive heavy-tail feature compressed with log1p.
+net_imports_change_pct,net_imports_change_pct_slog1p,signed_log1p,5.442512411099419,0.44081561844429185,RobustScaler,Signed heavy-tail feature compressed without losing direction.
+production_change_pct,production_change_pct_slog1p,signed_log1p,-0.2805202847208305,-0.27928516258001407,RobustScaler,Signed heavy-tail feature compressed without losing direction.
+vix_return,vix_return_slog1p,signed_log1p,2.508018353074305,1.6395445352928404,RobustScaler,Signed heavy-tail feature compressed without losing direction.

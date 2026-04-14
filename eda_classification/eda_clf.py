@@ -1,6 +1,6 @@
 """
 EDA Classification - Oil Price Direction (UP/DOWN)
-Target: oil_return > 0 → UP(1), else DOWN(0)
+Target: oil_return_fwd1 > 0 -> UP(1), else DOWN(0)
 Plots saved to eda_classification/
 """
 import warnings, os, sys
@@ -16,31 +16,50 @@ plt.rcParams.update({'figure.dpi': 130, 'font.size': 9, 'figure.facecolor': 'whi
 sns.set_style('whitegrid')
 
 ROOT = os.path.join(os.path.dirname(__file__), '..')
-DATA = os.path.join(ROOT, 'data', 'processed', 'dataset_step4_transformed.csv')
-OUT = os.path.dirname(__file__)
+DATA = os.getenv('EDA_DATA_PATH', os.path.join(ROOT, 'data', 'processed', 'dataset_step4_transformed.csv'))
+OUT = os.getenv('EDA_OUT_DIR', os.path.dirname(__file__)).strip()
+PREFIX = os.getenv('EDA_PREFIX', '').strip()
+RUN_LABEL = os.getenv('EDA_RUN_LABEL', PREFIX or os.path.splitext(os.path.basename(DATA))[0]).strip()
+TARGET_RET = 'oil_return_fwd1'
+TARGET_DATE = 'oil_return_fwd1_date'
+
+os.makedirs(OUT, exist_ok=True)
 
 def save(name):
-    plt.savefig(os.path.join(OUT, name), bbox_inches='tight', dpi=130); plt.close('all')
-    print(f'    -> {name}')
+    out_name = f'{PREFIX}_{name}' if PREFIX else name
+    plt.savefig(os.path.join(OUT, out_name), bbox_inches='tight', dpi=130); plt.close('all')
+    print(f'    -> {out_name}')
 
 P = '=' * 90
 SPLIT = '2023-01-01'
 
 # ─── LOAD ────────────────────────────────────────────────────
 print(f'\n{P}\n LOAD\n{P}')
-df = pd.read_csv(DATA, parse_dates=['date']).sort_values('date').reset_index(drop=True)
+print(f'  Run label: {RUN_LABEL}')
+print(f'  Dataset: {DATA}')
+parse_dates = ['date']
+if os.path.exists(DATA):
+    probe = pd.read_csv(DATA, nrows=0)
+    if TARGET_DATE in probe.columns:
+        parse_dates.append(TARGET_DATE)
+df = pd.read_csv(DATA, parse_dates=parse_dates).sort_values('date').reset_index(drop=True)
 
 # Target
-df['direction'] = (df['oil_return'] > 0).astype(int)  # 1=UP, 0=DOWN
+df['direction'] = (df[TARGET_RET] > 0).astype(int)  # 1=UP, 0=DOWN
+split_col = TARGET_DATE if TARGET_DATE in df.columns else 'date'
+split_values = pd.to_datetime(df[split_col])
 
-train = df[df['date'] < SPLIT].copy()
-test  = df[df['date'] >= SPLIT].copy()
+train = df[split_values < SPLIT].copy()
+test  = df[split_values >= SPLIT].copy()
 
-NUM = [c for c in df.columns if c not in ['date', 'oil_return', 'direction']]
+NUM = [c for c in df.columns if c not in ['date', TARGET_RET, TARGET_DATE, 'direction']]
 TARGET = 'direction'
 
 print(f'  Shape: {df.shape} | Train: {len(train)} | Test: {len(test)}')
 print(f'  Features: {len(NUM)}')
+if split_col != 'date':
+    print(f'  Train targets: {train[split_col].iloc[0].date()} -> {train[split_col].iloc[-1].date()}')
+    print(f'  Test targets:  {test[split_col].iloc[0].date()} -> {test[split_col].iloc[-1].date()}')
 
 # ═══════════════════════════════════════════════════════════════
 # 1. CLASS DISTRIBUTION
@@ -259,7 +278,7 @@ for d, l in [('2020-03', 'COVID'), ('2022-02', 'Ukraine')]:
     axes[0].text(pd.Timestamp(d), 0.7, l, fontsize=8, rotation=90, va='top')
 
 # Monthly class counts
-monthly = train.set_index('date').resample('ME')[TARGET].value_counts().unstack(fill_value=0)
+monthly = train.set_index('date').resample('M')[TARGET].value_counts().unstack(fill_value=0)
 axes[1].bar(monthly.index, monthly.get(0, 0), width=20, color='#C44E52', label='DOWN', alpha=0.7)
 axes[1].bar(monthly.index, monthly.get(1, 0), width=20, bottom=monthly.get(0, 0), color='#55A868', label='UP', alpha=0.7)
 axes[1].legend(fontsize=8); axes[1].set_ylabel('Count')
@@ -358,7 +377,8 @@ sig_rpb = pb_df[pb_df.p < 0.05].shape[0]
 top5 = combined.head(5)
 
 print(f"""
-  TARGET: direction (1=UP, 0=DOWN)
+  RUN LABEL: {RUN_LABEL}
+  TARGET: direction = ({TARGET_RET} > 0)
   CLASS BALANCE:
     Train: UP={train[TARGET].mean():.1%} DOWN={1-train[TARGET].mean():.1%} (near balanced)
     Test:  UP={test[TARGET].mean():.1%} DOWN={1-test[TARGET].mean():.1%}
@@ -378,5 +398,6 @@ print(f"""
   PLOTS: 12 files in eda_classification/
 """)
 
-combined.to_csv(os.path.join(OUT, 'feature_ranking_clf.csv'), index=False)
+ranking_name = f'{PREFIX}_feature_ranking_clf.csv' if PREFIX else 'feature_ranking_clf.csv'
+combined.to_csv(os.path.join(OUT, ranking_name), index=False)
 print(f'{P}\n DONE\n{P}')

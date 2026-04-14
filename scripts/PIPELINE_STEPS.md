@@ -70,14 +70,15 @@ File này giải thích từng script trong thư mục `scripts/` tương ứng 
 - Output chính: `data/processed/dataset_step4_transformed.csv`
 
 ### `step4b_fix_leakage.py`
-- Vai trò: sửa leakage ở mức dataset bằng cách shift các cột same-day và drop các dòng NaN sinh ra
+- Vai trò: tạo bản no-leakage bảo thủ bằng cách drop các cột đã bị contamination do release timing, split leakage, hoặc full-series preprocessing leakage
 - Thuộc bước: Bước 4B - Leakage Fix
 - Input: `data/processed/dataset_step4_transformed.csv`
 - Output chính:
   - `data/processed/dataset_step4_noleak.csv`
   - `data/processed/dataset_final_noleak.csv`
+  - `data/processed/dataset_step4_noleak_drop_report.csv`
 - Ghi chú:
-  - Đây là bước mới thêm để tạo bộ dữ liệu no-leakage cho modeling
+  - Đây là bước no-leakage theo hướng bảo thủ: loại cột bẩn thay vì cố sửa timestamp ngay trong `step4`
   - Nếu muốn train nghiêm ngặt hơn, nên ưu tiên dùng output của bước này
 
 ### `step5_reduction.py`
@@ -90,6 +91,17 @@ File này giải thích từng script trong thư mục `scripts/` tương ứng 
 - Ghi chú:
   - Đây là reduction trên dataset gốc sau step4
   - Nếu muốn reduction trên bản no-leakage, dùng `step4b_fix_leakage.py`
+
+### `step5b_processing.py`
+- Vai trò: áp dụng processing an toàn sau `step4b` bằng các transform deterministic như cyclical encoding, `log1p`, `signed_log1p`
+- Thuộc bước: Bước 5B - Processing
+- Input: `data/processed/dataset_final_noleak.csv`
+- Output chính:
+  - `data/processed/dataset_final_noleak_processed.csv`
+  - `data/processed/dataset_final_noleak_processing_report.csv`
+- Ghi chú:
+  - Bước này cố ý không fit scaler trên full dataset để tránh leakage mới
+  - Các scaler như `StandardScaler`, `RobustScaler`, `PowerTransformer` vẫn nên fit trong pipeline train
 
 ### `step6_quality_check.py`
 - Vai trò: kiểm tra NaN, INF, leakage cơ bản, train/test split, sample data
@@ -116,9 +128,11 @@ File này giải thích từng script trong thư mục `scripts/` tương ứng 
 3. `step3_integration.py`
 4. `step4_transformation.py`
 5. `step4b_fix_leakage.py`
-6. kiểm tra thêm hoặc train trực tiếp trên:
+6. `step5b_processing.py`
+7. kiểm tra thêm hoặc train trực tiếp trên:
    - `data/processed/dataset_step4_noleak.csv`
    - `data/processed/dataset_final_noleak.csv`
+   - `data/processed/dataset_final_noleak_processed.csv`
 
 ## 5. File nào nên dùng cho modeling
 
@@ -128,3 +142,4 @@ File này giải thích từng script trong thư mục `scripts/` tương ứng 
 ### Nếu muốn hạn chế leakage
 - Dùng `data/processed/dataset_step4_noleak.csv` nếu cần full feature set
 - Dùng `data/processed/dataset_final_noleak.csv` nếu cần model-ready dataset
+- Dùng `data/processed/dataset_final_noleak_processed.csv` nếu muốn thêm processing deterministic trước khi train
