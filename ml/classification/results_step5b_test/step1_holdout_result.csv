@@ -1,0 +1,2 @@
+Model,Accuracy,F1_binary,F1_macro,AUC,Precision_UP,Recall_UP,TP,FP,TN,FN,Selected_On,Validation_F1_macro,Validation_Accuracy,CV_Acc,Params
+XGBoost,0.5035714285714286,0.4017216642754663,0.4887550335619448,0.5385779722896211,0.5017921146953405,0.3349282296650718,140,139,283,278,validation,0.5666666666666667,0.5692307692307692,0.5366336633663366,"{'learning_rate': 0.01, 'max_depth': 7, 'n_estimators': 100, 'reg_alpha': 0}"

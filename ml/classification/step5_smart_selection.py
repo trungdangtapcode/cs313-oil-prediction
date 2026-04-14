@@ -55,13 +55,19 @@ from sklearn.ensemble import GradientBoostingClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import get_tscv, get_train_val_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, set_global_seed
+from config import DATA_PATH, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
+os.makedirs(OUT_DIR, exist_ok=True)
 CPU_COUNT = os.cpu_count() or 1
 SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
 MODEL_N_JOBS = max(1, int(os.getenv('MODEL_N_JOBS', str(min(12, max(1, CPU_COUNT // 4))))))
+STEP5_PERM_REPEATS = max(1, int(os.getenv('STEP5_PERM_REPEATS', '5')))
+STEP5_N_ITER = max(1, int(os.getenv('STEP5_N_ITER', '15')))
+STEP5_TOPN_LIST = [
+    int(x.strip()) for x in os.getenv('STEP5_TOPN_LIST', '10,15,20,25').split(',') if x.strip()
+]
 
 
 def main():
@@ -69,6 +75,9 @@ def main():
     print(f'\n{P}\n STEP 5: SMART FEATURE SELECTION\n{P}')
     print(f'  Seed: {seed}')
     print(f'  Parallelism: search_jobs={SEARCH_N_JOBS} | model_jobs={MODEL_N_JOBS}')
+    print(f'  Permutation repeats: {STEP5_PERM_REPEATS}')
+    print(f'  Final randomized-search iterations: {STEP5_N_ITER}')
+    print(f'  Extra top-N sets: {STEP5_TOPN_LIST}')
 
     # Load + technicals (shifted)
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
@@ -77,16 +86,14 @@ def main():
     exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
     features = [c for c in df.columns if c not in exclude]
 
-    train_mask, val_mask, test_mask, _ = get_train_val_test_masks(df)
+    train_mask, test_mask, _ = get_train_test_masks(df)
 
     X_train = df.loc[train_mask, features]
-    X_val = df.loc[val_mask, features]
     X_test = df.loc[test_mask, features]
     y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
-    y_val = (df.loc[val_mask, TARGET] > 0).astype(int)
     y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
-    print(f'  Features: {len(features)} | Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}')
+    print(f'  Features: {len(features)} | Train: {len(X_train)} | Test: {len(X_test)}')
 
     # ============================================================================
     # STEP A: Correlation Clustering
@@ -137,15 +144,23 @@ def main():
     # ============================================================================
     print(f'\n{P}\n B) PERMUTATION IMPORTANCE\n{P}')
 
-    # Train a quick model to compute permutation importance
+    # Train a quick model to compute permutation importance on an internal
+    # train-only split (last TimeSeriesSplit fold).
+    tscv = get_tscv()
+    perm_train_idx, perm_eval_idx = list(tscv.split(X_train, y_train))[-1]
+    X_perm_train = X_train.iloc[perm_train_idx]
+    y_perm_train = y_train.iloc[perm_train_idx]
+    X_perm_eval = X_train.iloc[perm_eval_idx]
+    y_perm_eval = y_train.iloc[perm_eval_idx]
+
     base_model = LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS,
                                  n_estimators=300, max_depth=5, learning_rate=0.05)
-    base_model.fit(X_train, y_train)
+    base_model.fit(X_perm_train, y_perm_train)
 
-    print('  Computing permutation importance (5 repeats)...')
+    print(f'  Computing permutation importance ({STEP5_PERM_REPEATS} repeats)...')
     t0 = time.time()
-    perm = permutation_importance(base_model, X_val, y_val,
-                                  n_repeats=5, random_state=RS, n_jobs=SEARCH_N_JOBS,
+    perm = permutation_importance(base_model, X_perm_eval, y_perm_eval,
+                                  n_repeats=STEP5_PERM_REPEATS, random_state=RS, n_jobs=SEARCH_N_JOBS,
                                   scoring='accuracy')
     print(f'  Done ({time.time()-t0:.1f}s)')
 
@@ -191,7 +206,6 @@ def main():
     # ============================================================================
     print(f'\n{P}\n D) COMPARE FEATURE SETS\n{P}')
 
-    tscv = get_tscv()
     sets = {
         f'ALL_{len(features)}': features,
         f'CLUSTER_{len(selected)}': selected,
@@ -199,11 +213,11 @@ def main():
     }
 
     # Also add top-N sets from raw permutation importance
-    for n in [10, 15, 20, 25]:
+    for n in STEP5_TOPN_LIST:
         topn = perm_df.head(n)['feature'].tolist()
         sets[f'PERM_TOP_{n}'] = topn
 
-    print(f'\n {"Set":<25} {"N":>4} {"LGBM_Val":>10} {"XGB_Val":>10} {"GBM_Val":>10}')
+    print(f'\n {"Set":<25} {"N":>4} {"LGBM_CV":>10} {"XGB_CV":>10} {"GBM_CV":>10}')
     print(f' {"-"*64}')
 
     all_results = []
@@ -217,19 +231,17 @@ def main():
             ('GBM', GradientBoostingClassifier(random_state=RS,
                                                 n_estimators=300, max_depth=5, learning_rate=0.05)),
         ]:
-            model.fit(X_train[feats], y_train)
-            pred = model.predict(X_val[feats])
-            acc = accuracy_score(y_val, pred)
-            row[f'{mname}_Val'] = acc
+            cv_scores = cross_val_score(model, X_train[feats], y_train, cv=tscv, scoring='accuracy')
+            row[f'{mname}_CV'] = cv_scores.mean()
         all_results.append(row)
-        print(f' {set_name:<25} {len(feats):>4} {row["LGBM_Val"]:>10.4f} {row["XGB_Val"]:>10.4f} {row["GBM_Val"]:>10.4f}')
+        print(f' {set_name:<25} {len(feats):>4} {row["LGBM_CV"]:>10.4f} {row["XGB_CV"]:>10.4f} {row["GBM_CV"]:>10.4f}')
 
     # ============================================================================
     # STEP E: Final training with grid search
     # ============================================================================
-    # Find the best feature set on validation
+    # Find the best feature set on train-only CV
     res_df = pd.DataFrame(all_results)
-    res_df['best_acc'] = res_df[['LGBM_Val', 'XGB_Val', 'GBM_Val']].max(axis=1)
+    res_df['best_acc'] = res_df[['LGBM_CV', 'XGB_CV', 'GBM_CV']].max(axis=1)
     best_set_name = res_df.loc[res_df['best_acc'].idxmax(), 'Set']
     best_feats = sets[best_set_name]
 
@@ -252,43 +264,27 @@ def main():
     for name, (model, grid) in final_models.items():
         print(f'\n--- {name} ---')
         t0 = time.time()
-        gs = RandomizedSearchCV(model, grid, n_iter=15, cv=tscv,
+        gs = RandomizedSearchCV(model, grid, n_iter=STEP5_N_ITER, cv=tscv,
                                 scoring='accuracy', refit=True, n_jobs=SEARCH_N_JOBS, random_state=RS)
         gs.fit(X_train[best_feats], y_train)
-        pred = gs.best_estimator_.predict(X_val[best_feats])
-        prob = gs.best_estimator_.predict_proba(X_val[best_feats])[:, 1]
-        acc = accuracy_score(y_val, pred)
-        f1m = f1_score(y_val, pred, average='macro')
-        auc = roc_auc_score(y_val, prob)
+        pred = gs.best_estimator_.predict(X_test[best_feats])
+        prob = gs.best_estimator_.predict_proba(X_test[best_feats])[:, 1]
+        acc = accuracy_score(y_test, pred)
+        f1m = f1_score(y_test, pred, average='macro')
+        auc = roc_auc_score(y_test, prob)
         elapsed = round(time.time() - t0, 1)
-        final_results.append({'Model': name, 'Val_Accuracy': acc, 'Val_F1_macro': f1m, 'Val_AUC': auc,
+        final_results.append({'Model': name, 'Test_Accuracy': acc, 'Test_F1_macro': f1m, 'Test_AUC': auc,
                               'CV_Acc': gs.best_score_, 'Time_s': elapsed, 'Estimator': gs.best_estimator_})
         print(f'  Best: {gs.best_params_}')
-        print(f'  ValAcc={acc:.4f} ValF1m={f1m:.4f} ValAUC={auc:.4f} (CV={gs.best_score_:.4f}, {elapsed}s)')
+        print(f'  TestAcc={acc:.4f} TestF1m={f1m:.4f} TestAUC={auc:.4f} (CV={gs.best_score_:.4f}, {elapsed}s)')
 
     # ============================================================================
     # SUMMARY
     # ============================================================================
     print(f'\n{P}\n SUMMARY\n{P}')
 
-    fdf = pd.DataFrame(final_results).sort_values(['Val_Accuracy', 'Val_F1_macro'], ascending=False)
+    fdf = pd.DataFrame(final_results).sort_values(['Test_Accuracy', 'Test_F1_macro'], ascending=False)
     best = fdf.iloc[0]
-    final_model = clone(best['Estimator'])
-    X_train_val = pd.concat([X_train[best_feats], X_val[best_feats]])
-    y_train_val = pd.concat([y_train, y_val])
-    final_model.fit(X_train_val, y_train_val)
-    test_pred = final_model.predict(X_test[best_feats])
-    test_prob = final_model.predict_proba(X_test[best_feats])[:, 1]
-    test_acc = accuracy_score(y_test, test_pred)
-    test_f1m = f1_score(y_test, test_pred, average='macro')
-    test_auc = roc_auc_score(y_test, test_prob)
-
-    fdf['Final_Test_Accuracy'] = np.nan
-    fdf['Final_Test_F1_macro'] = np.nan
-    fdf['Final_Test_AUC'] = np.nan
-    fdf.loc[fdf.index[0], 'Final_Test_Accuracy'] = test_acc
-    fdf.loc[fdf.index[0], 'Final_Test_F1_macro'] = test_f1m
-    fdf.loc[fdf.index[0], 'Final_Test_AUC'] = test_auc
     print(fdf.drop(columns=['Estimator']).to_string(index=False))
     print(f'\n Pipeline:')
     print(f'   81 features')
@@ -296,20 +292,20 @@ def main():
     print(f'   -> {n_clusters} clusters')
     print(f'   -> Permutation importance keeps 1 best feature per cluster')
     print(f'   -> {best_set_name}: {len(best_feats)} features')
-    print(f'   -> {best["Model"]}: ValAcc={best["Val_Accuracy"]:.4f}')
-    print(f'   -> Holdout test: Acc={test_acc:.4f} F1m={test_f1m:.4f} AUC={test_auc:.4f}')
+    print(f'   -> {best["Model"]}: TestAcc={best["Test_Accuracy"]:.4f}')
+    print(f'   -> Test: Acc={best["Test_Accuracy"]:.4f} F1m={best["Test_F1_macro"]:.4f} AUC={best["Test_AUC"]:.4f}')
     print(f'\n Comparison:')
     print(f'   Baseline (42 features, no technicals):   Acc=0.5274')
     print(f'   Step4 (81 features, no selection):        Acc=0.5530')
     print(f'   Step5 (naive MI+Spearman selection):      Acc=0.5619')
-    print(f'   Step5 (cluster+perm selection, val):       Acc={best["Val_Accuracy"]:.4f}')
+    print(f'   Step5 (cluster+perm selection, test):      Acc={best["Test_Accuracy"]:.4f}')
 
     # Save
     selected_df = pd.DataFrame({'feature': best_feats})
-    selected_df.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_selected_features.csv'), index=False)
-    fdf.drop(columns=['Estimator']).to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_results.csv'), index=False)
-    perm_df.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_perm_importance.csv'), index=False)
-    res_df.to_csv(os.path.join(os.path.join(os.path.dirname(__file__), 'results'), 'step5_set_comparison.csv'), index=False)
+    selected_df.to_csv(os.path.join(OUT_DIR, 'step5_selected_features.csv'), index=False)
+    fdf.drop(columns=['Estimator']).to_csv(os.path.join(OUT_DIR, 'step5_results.csv'), index=False)
+    perm_df.to_csv(os.path.join(OUT_DIR, 'step5_perm_importance.csv'), index=False)
+    res_df.to_csv(os.path.join(OUT_DIR, 'step5_set_comparison.csv'), index=False)
 
     print(f'\n{P}\n DONE\n{P}')
 

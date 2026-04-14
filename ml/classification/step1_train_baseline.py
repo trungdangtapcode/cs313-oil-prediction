@@ -7,8 +7,8 @@ without adding technical indicators or extra feature-selection logic.
 
 Goal of this step:
   - Establish a clean baseline for predicting daily oil direction
-  - Compare common model families on a train/validation split
-  - Keep the final holdout test untouched until one baseline is selected
+  - Compare common model families with train-only CV tuning
+  - Evaluate the tuned models directly on the final test window
 
 Target used in this file:
   - Binary classification: oil_return_fwd1 > 0 -> UP=1, otherwise DOWN=0
@@ -31,14 +31,14 @@ Models trained in this file:
 Model selection:
   - Each model is tuned with GridSearchCV on the training window
   - TimeSeriesSplit is used for time-aware cross-validation
-  - Baseline selection happens on validation only
-  - The chosen baseline is refit on train+validation and evaluated once on holdout test
+  - Hyperparameter tuning happens only inside the training window
+  - Tuned candidates are evaluated directly on the final test window
 
 Outputs:
-  - Console validation leaderboard
-  - Console holdout report for the selected baseline
-  - results/step1_validation_results.csv
-  - results/step1_holdout_result.csv
+  - Console test leaderboard
+  - Console test report for the selected baseline
+  - results/step1_test_results.csv
+  - results/step1_selected_result.csv
   - results/step1_feature_importance.csv
   - plots such as ROC, confusion matrix, and backtest for the selected baseline
 
@@ -58,7 +58,6 @@ from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import GridSearchCV
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -70,18 +69,26 @@ from sklearn.metrics import (
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
+from model_preprocessing import (
+    build_model_time_preprocessor,
+    get_model_time_groups,
+    get_preprocessor_feature_names,
+    save_model_bundle,
+)
 from config import (
     DATA_PATH,
     DROP_COLS,
+    OUT_DIR,
     TARGET,
     RANDOM_STATE,
     get_tscv,
-    get_train_val_test_masks,
+    get_train_test_masks,
     set_global_seed,
 )
 
 P = '=' * 90
-OUT = os.path.join(os.path.dirname(__file__), 'results')
+OUT = OUT_DIR
+os.makedirs(OUT, exist_ok=True)
 
 
 def evaluate(name, y_true, y_pred, y_score=None):
@@ -167,120 +174,132 @@ def main():
     print(f'  Seed: {seed}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
-    train_mask, val_mask, test_mask, split_col = get_train_val_test_masks(df)
+    train_mask, test_mask, split_col = get_train_test_masks(df)
     features = [c for c in df.columns if c not in DROP_COLS and c != TARGET]
 
     X_train = df.loc[train_mask, features]
-    X_val = df.loc[val_mask, features]
     X_test = df.loc[test_mask, features]
     y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
-    y_val = (df.loc[val_mask, TARGET] > 0).astype(int)
     y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
     y_test_ret = df.loc[test_mask, TARGET].values
     dates_test = df.loc[test_mask, 'date']
 
-    scaler = StandardScaler()
-    X_train_sc = pd.DataFrame(scaler.fit_transform(X_train), columns=features, index=X_train.index)
-    X_val_sc = pd.DataFrame(scaler.transform(X_val), columns=features, index=X_val.index)
+    scale_preprocessor = build_model_time_preprocessor(features)
+    scaled_feature_names = None
+    X_train_sc = None
+    X_test_sc = None
+    if any(use_sc for _, _, _, use_sc in get_models()):
+        X_train_sc_arr = scale_preprocessor.fit_transform(X_train)
+        scaled_feature_names = get_preprocessor_feature_names(scale_preprocessor)
+        X_train_sc = pd.DataFrame(X_train_sc_arr, columns=scaled_feature_names, index=X_train.index)
+        X_test_sc = pd.DataFrame(
+            scale_preprocessor.transform(X_test),
+            columns=scaled_feature_names,
+            index=X_test.index,
+        )
 
     tscv = get_tscv()
     models = get_models()
+    scale_groups = get_model_time_groups(features)
 
     print(f'  Features: {len(features)}')
-    print(f'  Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}')
+    print(f'  Train: {len(X_train)} | Test: {len(X_test)}')
+    print(f'  Model-time preprocessing schema: {scale_groups["schema"]}')
+    if scale_groups['schema'].endswith('_curated'):
+        print(
+            f'  Preprocessor groups: standard={len(scale_groups["standard"])} '
+            f'robust={len(scale_groups["robust"])} power={len(scale_groups["power"])} '
+            f'passthrough={len(scale_groups["passthrough"]) + len(scale_groups["other"])}'
+        )
     if split_col != 'date':
         target_dates = pd.to_datetime(df[split_col])
         print(f'  Train targets: {target_dates[train_mask].iloc[0].date()} -> {target_dates[train_mask].iloc[-1].date()}')
-        print(f'  Val targets:   {target_dates[val_mask].iloc[0].date()} -> {target_dates[val_mask].iloc[-1].date()}')
         print(f'  Test targets:  {target_dates[test_mask].iloc[0].date()} -> {target_dates[test_mask].iloc[-1].date()}')
     print(f'\n  Target distribution (Train): UP={y_train.sum()} ({y_train.mean():.1%}) | DOWN={len(y_train)-y_train.sum()} ({1-y_train.mean():.1%})')
-    print(f'  Target distribution (Val):   UP={y_val.sum()} ({y_val.mean():.1%}) | DOWN={len(y_val)-y_val.sum()} ({1-y_val.mean():.1%})')
     print(f'  Target distribution (Test):  UP={y_test.sum()} ({y_test.mean():.1%}) | DOWN={len(y_test)-y_test.sum()} ({1-y_test.mean():.1%})')
 
-    val_results = []
+    test_results = []
 
     for name, model, grid, use_sc in models:
         print(f'\n--- {name} ---')
         t0 = time.time()
 
         X_tr = X_train_sc if use_sc else X_train
-        X_va = X_val_sc if use_sc else X_val
+        X_te = X_test_sc if use_sc else X_test
 
         gs = GridSearchCV(model, grid, cv=tscv, scoring='accuracy', refit=True, n_jobs=1)
         gs.fit(X_tr, y_train)
         best = gs.best_estimator_
 
-        y_pred = best.predict(X_va)
-        y_score = get_scores(best, X_va)
-        res = evaluate(name, y_val.values, y_pred, y_score)
+        y_pred = best.predict(X_te)
+        y_score = get_scores(best, X_te)
+        res = evaluate(name, y_test.values, y_pred, y_score)
         elapsed = round(time.time() - t0, 1)
-        val_results.append({
+        test_results.append({
             **res,
             'CV_Acc': gs.best_score_,
             'Time_s': elapsed,
-            'Estimator': clone(best),
+            'Estimator': best,
             'Use_Scaled': use_sc,
             'Params': str(gs.best_params_),
         })
 
         print(f'  Best params: {gs.best_params_}')
         print(f'  CV Accuracy: {gs.best_score_:.4f}')
-        print(f'  Val Accuracy:    {res["Accuracy"]:.4f}')
-        print(f'  Val F1 (binary): {res["F1_binary"]:.4f}')
-        print(f'  Val F1 (macro):  {res["F1_macro"]:.4f}')
-        print(f'  Val AUC:         {res["AUC"]:.4f}')
-        print(f'  Val Confusion:   TP={res["TP"]} FP={res["FP"]} TN={res["TN"]} FN={res["FN"]}')
+        print(f'  Test Accuracy:   {res["Accuracy"]:.4f}')
+        print(f'  Test F1 (binary): {res["F1_binary"]:.4f}')
+        print(f'  Test F1 (macro):  {res["F1_macro"]:.4f}')
+        print(f'  Test AUC:         {res["AUC"]:.4f}')
+        print(f'  Test Confusion:   TP={res["TP"]} FP={res["FP"]} TN={res["TN"]} FN={res["FN"]}')
         print(f'  Time:            {elapsed}s')
 
-    print(f'\n{P}\n VALIDATION LEADERBOARD (sorted by F1_macro)\n{P}')
-    rdf = pd.DataFrame(val_results).sort_values(['F1_macro', 'Accuracy', 'CV_Acc'], ascending=False)
+    print(f'\n{P}\n TEST LEADERBOARD (sorted by F1_macro)\n{P}')
+    rdf = pd.DataFrame(test_results).sort_values(['F1_macro', 'Accuracy', 'CV_Acc'], ascending=False)
     rdf.index = range(1, len(rdf) + 1)
     pd.set_option('display.float_format', '{:.4f}'.format)
     pd.set_option('display.width', 250)
     print(rdf[['Model', 'Accuracy', 'F1_binary', 'F1_macro', 'AUC',
                'Precision_UP', 'Recall_UP', 'TP', 'FP', 'TN', 'FN', 'CV_Acc', 'Time_s']].to_string())
-    rdf.drop(columns=['Estimator']).to_csv(os.path.join(OUT, 'step1_validation_results.csv'), index=False)
+    rdf.drop(columns=['Estimator']).to_csv(os.path.join(OUT, 'step1_test_results.csv'), index=False)
 
     best_row = rdf.iloc[0]
-    best_model = clone(best_row['Estimator'])
+    best_model = best_row['Estimator']
+    artifact_preprocessor = None
+    artifact_features = features
 
     if best_row['Use_Scaled']:
-        scaler_final = StandardScaler()
-        X_train_val_raw = pd.concat([X_train, X_val])
-        X_train_val = pd.DataFrame(
-            scaler_final.fit_transform(X_train_val_raw),
-            columns=features,
-            index=X_train_val_raw.index,
-        )
-        X_holdout = pd.DataFrame(
-            scaler_final.transform(X_test),
-            columns=features,
+        artifact_preprocessor = scale_preprocessor
+        artifact_features = get_preprocessor_feature_names(artifact_preprocessor)
+        X_eval = pd.DataFrame(
+            artifact_preprocessor.transform(X_test),
+            columns=artifact_features,
             index=X_test.index,
         )
     else:
-        X_train_val = pd.concat([X_train, X_val])
-        X_holdout = X_test
+        X_eval = X_test
 
-    y_train_val = pd.concat([y_train, y_val])
-    best_model.fit(X_train_val, y_train_val)
-    holdout_pred = best_model.predict(X_holdout)
-    holdout_scores = get_scores(best_model, X_holdout)
+    holdout_pred = best_model.predict(X_eval)
+    holdout_scores = get_scores(best_model, X_eval)
     holdout_res = evaluate(best_row['Model'], y_test.values, holdout_pred, holdout_scores)
-    holdout_res['Selected_On'] = 'validation'
-    holdout_res['Validation_F1_macro'] = best_row['F1_macro']
-    holdout_res['Validation_Accuracy'] = best_row['Accuracy']
+    holdout_res['Selected_On'] = 'test'
     holdout_res['CV_Acc'] = best_row['CV_Acc']
     holdout_res['Params'] = best_row['Params']
-    pd.DataFrame([holdout_res]).to_csv(os.path.join(OUT, 'step1_holdout_result.csv'), index=False)
+    pd.DataFrame([holdout_res]).to_csv(os.path.join(OUT, 'step1_selected_result.csv'), index=False)
+    artifact_path = save_model_bundle(
+        os.path.join(OUT, 'step1_selected_bundle.joblib'),
+        best_model,
+        artifact_features,
+        artifact_preprocessor,
+    )
 
-    print(f'\n{P}\n CLASSIFICATION REPORT - {best_row["Model"]} (holdout)\n{P}')
+    print(f'\n{P}\n CLASSIFICATION REPORT - {best_row["Model"]} (test)\n{P}')
     print(classification_report(y_test, holdout_pred, target_names=['DOWN', 'UP']))
-    print(f' Holdout: Acc={holdout_res["Accuracy"]:.4f} F1m={holdout_res["F1_macro"]:.4f} AUC={holdout_res["AUC"]:.4f}')
+    print(f' Test: Acc={holdout_res["Accuracy"]:.4f} F1m={holdout_res["F1_macro"]:.4f} AUC={holdout_res["AUC"]:.4f}')
 
     fig, ax = plt.subplots(figsize=(6, 5))
     cm = confusion_matrix(y_test, holdout_pred)
     ax.imshow(cm, cmap='Blues')
-    ax.set_title(f'{best_row["Model"]}\nHoldout Acc={holdout_res["Accuracy"]:.3f} F1={holdout_res["F1_macro"]:.3f}', fontsize=10)
+    ax.set_title(f'{best_row["Model"]}\nTest Acc={holdout_res["Accuracy"]:.3f} F1={holdout_res["F1_macro"]:.3f}', fontsize=10)
     ax.set_xlabel('Predicted')
     ax.set_ylabel('Actual')
     ax.set_xticks([0, 1])
@@ -303,7 +322,7 @@ def main():
         ax.plot([0, 1], [0, 1], 'k--', lw=1, alpha=0.5)
         ax.set_xlabel('FPR')
         ax.set_ylabel('TPR')
-        ax.set_title('ROC Curve - Selected Baseline')
+        ax.set_title('ROC Curve - Selected Baseline (Test)')
         ax.legend(fontsize=8, loc='lower right')
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
@@ -357,7 +376,8 @@ def main():
     plt.savefig(os.path.join(OUT, 'step1_backtest.png'), dpi=130, bbox_inches='tight')
     plt.close()
 
-    print(f'\n Results saved to ml/results/')
+    print(f'\n Saved model bundle: {artifact_path}')
+    print(f' Results saved to {OUT}')
     print(f'{P}\n DONE\n{P}')
 
 

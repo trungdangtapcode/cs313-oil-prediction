@@ -1,0 +1,170 @@
+[2026-04-14 15:07:25] START step4 (step4_select_and_train.py)
+[2026-04-14 15:07:25] PYTHON_BIN=/home/vund/.svn/.venv/bin/python
+[2026-04-14 15:07:25] MAX_JOBS=1 THREADS_PER_JOB=1 SEED=42
+
+==========================================================================================
+ STEP 4: FEATURE SELECTION + RETRAIN (81 features)
+==========================================================================================
+  Seed: 42
+  Final randomized-search iterations: 15
+  Subset sizes: [10, 15, 20, 25, 30, 40, 50, 60, 70]
+  Total features: 56
+  Train: 1772 | Val: 260 | Test: 840
+  Target: UP=915 (51.6%) | DOWN=857
+
+==========================================================================================
+ 1. FEATURE RANKING
+==========================================================================================
+
+ #    Feature                              MI     |Sp|      Mix   MI_rk   Sp_rk   Mix_rk
+ --------------------------------------------------------------------------------------------
+ 1    gdelt_tone_7d                    0.0193   0.0606   0.8515       2       8        1
+ 2    gdelt_goldstein                  0.0184   0.0576   0.8116       3      11        2
+ 3    conflict_event_count_log1p       0.0077   0.0782   0.6859      16       1        3
+ 4    gdelt_tone_30d                   0.0110   0.0649   0.6791      12       6        4
+ 5    ma_5_10_cross                    0.0144   0.0483   0.6572       7      14        5
+ 6    bb_width                         0.0177   0.0307   0.6232       5      28        6
+ 7    day_of_week_sin                  0.0037   0.0767   0.5798      24       2        7
+ 8    momentum_5                       0.0207   0.0103   0.5660       1      48        8
+ 9    inventory_zscore                 0.0102   0.0487   0.5582      14      13        9
+ 10   macd_signal                      0.0103   0.0474   0.5520      13      15       10
+ 11   ret_std_5                        0.0138   0.0295   0.5211       8      31       11
+ 12   yield_spread                     0.0151   0.0242   0.5187       6      34       12
+ 13   oil_return_lag5                  0.0181   0.0105   0.5038       4      47       13
+ 14   conflict_intensity_7d_log1p      0.0000   0.0756   0.4834      32       3       14
+ 15   fatalities_log1p                 0.0046   0.0577   0.4790      21      10       15
+ 16   gdelt_goldstein_7d               0.0020   0.0662   0.4728      27       5       16
+ 17   inventory_change_pct             0.0000   0.0723   0.4621      33       4       17
+ 18   gdelt_volume_lag1_log1p          0.0018   0.0632   0.4466      29       7       18
+ 19   day_of_week_cos                  0.0071   0.0379   0.4148      19      22       19
+ 20   oil_return_lag2                  0.0138   0.0112   0.4030       9      46       20
+ 21   sp500_return                     0.0129   0.0120   0.3880      10      44       21
+ 22   gdelt_tone_lag1                  0.0000   0.0604   0.3861      34       9       22
+ 23   rsi_14                           0.0072   0.0332   0.3851      18      23       23
+ 24   ma_10                            0.0073   0.0304   0.3715      17      29       24
+ 25   net_imports_change_pct_slog1p    0.0000   0.0561   0.3589      35      12       25
+ 26   fatalities_7d_log1p              0.0096   0.0192   0.3542      15      40       26
+ 27   price_vs_ma50                    0.0038   0.0403   0.3503      23      20       27
+ 28   vix_return_slog1p                0.0125   0.0037   0.3240      11      53       28
+ 29   oil_return                       0.0047   0.0323   0.3188      20      24       29
+ 30   macd                             0.0000   0.0432   0.2766      36      16       30
+ 31   gdelt_events_log1p               0.0000   0.0424   0.2709      37      17       31
+ 32   month_sin                        0.0000   0.0421   0.2689      38      18       32
+ 33   ret_mean_20                      0.0000   0.0410   0.2620      39      19       33
+ 34   momentum_20                      0.0000   0.0399   0.2552      40      21       34
+ 35   sp500_return_lag1                0.0039   0.0241   0.2487      22      36       35
+ 36   bb_lower                         0.0007   0.0322   0.2217      31      25       36
+ 37   ma_50                            0.0036   0.0209   0.2211      25      39       37
+ 38   oil_return_lag1                  0.0000   0.0313   0.2000      41      26       38
+ 39   ma_20_50_cross                   0.0000   0.0307   0.1965      42      27       39
+ 40   ma_5                             0.0000   0.0304   0.1947      43      30       40
+ 41   ma_20                            0.0000   0.0289   0.1849      44      32       41
+ 42   ma_10_20_cross                   0.0000   0.0267   0.1707      45      33       42
+ 43   bb_upper                         0.0000   0.0242   0.1545      46      35       43
+ 44   ret_std_20                       0.0000   0.0221   0.1411      47      37       44
+ 45   production_change_pct_slog1p     0.0000   0.0218   0.1395      48      38       45
+ 46   usd_return                       0.0025   0.0087   0.1166      26      51       46
+ 47   ret_mean_5                       0.0018   0.0102   0.1090      28      49       47
+ 48   oil_return_lag3                  0.0000   0.0155   0.0989      49      41       48
+ 49   bb_position                      0.0000   0.0131   0.0835      50      42       49
+ 50   month_cos                        0.0000   0.0126   0.0807      51      43       50
+ 51   macd_cross                       0.0000   0.0112   0.0717      52      45       51
+ 52   price_vs_ma20                    0.0000   0.0098   0.0629      53      50       52
+ 53   macd_hist                        0.0014   0.0026   0.0504      30      54       53
+ 54   momentum_10                      0.0000   0.0038   0.0245      54      52       54
+ 55   vix_lag1_log1p                   0.0000   0.0008   0.0052      55      55       55
+ 56   vix_return_lag1                  0.0000      nan      nan      56      56       56
+
+ Top 10 by ranking scheme:
+  spearman: conflict_event_count_log1p, day_of_week_sin, conflict_intensity_7d_log1p, inventory_change_pct, gdelt_goldstein_7d, gdelt_tone_30d, gdelt_volume_lag1_log1p, gdelt_tone_7d, gdelt_tone_lag1, fatalities_log1p
+  mi: momentum_5, gdelt_tone_7d, gdelt_goldstein, oil_return_lag5, bb_width, yield_spread, ma_5_10_cross, ret_std_5, oil_return_lag2, sp500_return
+  mi_spearman: gdelt_tone_7d, gdelt_goldstein, conflict_event_count_log1p, gdelt_tone_30d, ma_5_10_cross, bb_width, day_of_week_sin, momentum_5, inventory_zscore, macd_signal
+
+==========================================================================================
+ 2. SUBSET COMPARISON (28 cases, LGBM proxy)
+==========================================================================================
+  Cases: 22
+  Warning: expected 28 cases, got 22 because total features=56
+
+ Case                     Rank             N   CV_Acc    Val_Acc    Val_F1m
+ ----------------------------------------------------------------------------
+ SPEARMAN_TOP_10          spearman        10   0.4963     0.5231     0.5175
+ SPEARMAN_TOP_15          spearman        15   0.5031     0.4808     0.4774
+ SPEARMAN_TOP_20          spearman        20   0.5051     0.5346     0.5260
+ SPEARMAN_TOP_25          spearman        25   0.5112     0.5500     0.5458
+ SPEARMAN_TOP_30          spearman        30   0.5125     0.5192     0.5057
+ SPEARMAN_TOP_40          spearman        40   0.5105     0.5731     0.5691
+ SPEARMAN_TOP_50          spearman        50   0.5031     0.5769     0.5733
+ MI_TOP_10                mi              10   0.4820     0.5192     0.5140
+ MI_TOP_15                mi              15   0.4908     0.5423     0.5412
+ MI_TOP_20                mi              20   0.5085     0.5192     0.5192
+ MI_TOP_25                mi              25   0.4956     0.5423     0.5339
+ MI_TOP_30                mi              30   0.5003     0.5154     0.4900
+ MI_TOP_40                mi              40   0.5058     0.5577     0.5485
+ MI_TOP_50                mi              50   0.5092     0.5615     0.5520
+ MI_SPEARMAN_TOP_10       mi_spearman     10   0.5044     0.4692     0.4505
+ MI_SPEARMAN_TOP_15       mi_spearman     15   0.5064     0.5308     0.5216
+ MI_SPEARMAN_TOP_20       mi_spearman     20   0.5078     0.5692     0.5691
+ MI_SPEARMAN_TOP_25       mi_spearman     25   0.5031     0.5577     0.5553
+ MI_SPEARMAN_TOP_30       mi_spearman     30   0.5064     0.5769     0.5712
+ MI_SPEARMAN_TOP_40       mi_spearman     40   0.4868     0.5846     0.5774
+ MI_SPEARMAN_TOP_50       mi_spearman     50   0.5071     0.5423     0.5306
+ ALL_56                   all             56   0.5044     0.5885     0.5800
+
+ Best case on validation: ALL_56 (56 features, Acc=0.5885)
+
+ Best case by ranking family:
+  spearman      SPEARMAN_TOP_50          ValAcc=0.5769 ValF1m=0.5733
+  mi            MI_TOP_50                ValAcc=0.5615 ValF1m=0.5520
+  mi_spearman   MI_SPEARMAN_TOP_40       ValAcc=0.5846 ValF1m=0.5774
+  all           ALL_56                   ValAcc=0.5885 ValF1m=0.5800
+
+==========================================================================================
+ 3. TRAIN ON ALL_56 (56 features)
+==========================================================================================
+
+--- XGB ---
+  Best: {'reg_alpha': 0.1, 'n_estimators': 200, 'max_depth': 7, 'learning_rate': 0.01}
+  CV_Acc=0.5424 | Val: Acc=0.5808 F1m=0.5780 AUC=0.6157 (145.4s)
+
+--- GBM ---
+  Best: {'n_estimators': 200, 'min_samples_leaf': 10, 'max_depth': 3, 'learning_rate': 0.01}
+  CV_Acc=0.5342 | Val: Acc=0.4885 F1m=0.4626 AUC=0.5162 (880.3s)
+
+--- LGBM ---
+  Best: {'num_leaves': 31, 'n_estimators': 300, 'max_depth': 3, 'learning_rate': 0.01}
+  CV_Acc=0.5363 | Val: Acc=0.5346 F1m=0.5215 AUC=0.5467 (28.9s)
+
+==========================================================================================
+ SUMMARY
+==========================================================================================
+
+ Best case on validation: ALL_56 (56 features)
+ Validation model comparison:
+  Model  Val_Accuracy  Val_F1_macro   Val_AUC    CV_Acc  Time_s Selected_Case Ranking  N_Features  Final_Test_Accuracy  Final_Test_F1_macro  Final_Test_AUC
+1   XGB      0.580769      0.578016  0.615708  0.542373   145.4        ALL_56     all          56             0.516667             0.478226        0.537257
+2  LGBM      0.534615      0.521528  0.546697  0.536271    28.9        ALL_56     all          56                  NaN                  NaN             NaN
+3   GBM      0.488462      0.462635  0.516158  0.534237   880.3        ALL_56     all          56                  NaN                  NaN             NaN
+
+ Final holdout test (XGB selected on validation): Acc=0.5167 F1m=0.4782 AUC=0.5373
+
+ Top 15 features used in ALL_56:
+    1. yield_spread                   MI=0.0151 |Sp|=0.0242 Mix=0.5187
+    2. inventory_change_pct           MI=0.0000 |Sp|=0.0723 Mix=0.4621
+    3. gdelt_goldstein                MI=0.0184 |Sp|=0.0576 Mix=0.8116
+    4. gdelt_tone_7d                  MI=0.0193 |Sp|=0.0606 Mix=0.8515
+    5. gdelt_tone_30d                 MI=0.0110 |Sp|=0.0649 Mix=0.6791
+    6. gdelt_goldstein_7d             MI=0.0020 |Sp|=0.0662 Mix=0.4728
+    7. oil_return                     MI=0.0047 |Sp|=0.0323 Mix=0.3188
+    8. usd_return                     MI=0.0025 |Sp|=0.0087 Mix=0.1166
+    9. sp500_return                   MI=0.0129 |Sp|=0.0120 Mix=0.3880
+   10. inventory_zscore               MI=0.0102 |Sp|=0.0487 Mix=0.5582
+   11. oil_return_lag1                MI=0.0000 |Sp|=0.0313 Mix=0.2000
+   12. oil_return_lag2                MI=0.0138 |Sp|=0.0112 Mix=0.4030
+   13. gdelt_tone_lag1                MI=0.0000 |Sp|=0.0604 Mix=0.3861
+   14. day_of_week_sin                MI=0.0037 |Sp|=0.0767 Mix=0.5798
+   15. day_of_week_cos                MI=0.0071 |Sp|=0.0379 Mix=0.4148
+
+==========================================================================================
+ DONE
+==========================================================================================

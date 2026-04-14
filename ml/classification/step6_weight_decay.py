@@ -50,11 +50,12 @@ from sklearn.feature_selection import mutual_info_classif
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, get_train_val_test_masks, set_global_seed
+from config import DATA_PATH, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
-OUT = os.path.join(os.path.dirname(__file__), 'results')
+OUT = OUT_DIR
+os.makedirs(OUT, exist_ok=True)
 
 
 def exponential_weights(n, half_life):
@@ -96,13 +97,11 @@ def main():
     exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
     all_features = [c for c in df.columns if c not in exclude]
 
-    train_mask, val_mask, test_mask, _ = get_train_val_test_masks(df)
+    train_mask, test_mask, _ = get_train_test_masks(df)
 
     X_train_full = df.loc[train_mask, all_features]
-    X_val_full = df.loc[val_mask, all_features]
     X_test_full = df.loc[test_mask, all_features]
     y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
-    y_val = (df.loc[val_mask, TARGET] > 0).astype(int)
     y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
     mi = mutual_info_classif(X_train_full.fillna(0), y_train, random_state=RS, n_neighbors=5)
@@ -116,12 +115,18 @@ def main():
     top50 = rank.head(50)['feature'].tolist()
 
     X_train = X_train_full[top50]
-    X_val = X_val_full[top50]
     X_test = X_test_full[top50]
     n_train = len(X_train)
+    tscv = get_tscv()
+    inner_train_idx, inner_eval_idx = list(tscv.split(X_train, y_train))[-1]
+    X_inner_train = X_train.iloc[inner_train_idx]
+    X_inner_eval = X_train.iloc[inner_eval_idx]
+    y_inner_train = y_train.iloc[inner_train_idx]
+    y_inner_eval = y_train.iloc[inner_eval_idx]
 
     print(f'  Features: {len(top50)} (TOP_50)')
-    print(f'  Train: {n_train} | Val: {len(X_val)} | Test: {len(X_test)}')
+    print(f'  Train: {n_train} | Test: {len(X_test)}')
+    print(f'  Inner split for scheme selection: train={len(X_inner_train)} | eval={len(X_inner_eval)}')
 
     print(f'\n{P}\n A) WEIGHT SCHEMES\n{P}')
     scheme_builders = {
@@ -155,7 +160,7 @@ def main():
     for name, w in schemes.items():
         print(f'  {name:<20} min={w.min():.4f} max={w.max():.4f} mean={w.mean():.4f}')
 
-    print(f'\n{P}\n B) VALIDATION GRID\n{P}')
+    print(f'\n{P}\n B) INNER TRAIN SELECTION GRID\n{P}')
     model_configs = {
         'GBM': lambda: GradientBoostingClassifier(
             random_state=RS, n_estimators=300, max_depth=5, learning_rate=0.03, min_samples_leaf=5),
@@ -168,103 +173,102 @@ def main():
     }
 
     val_results = []
-    print(f'\n {"Scheme":<22} {"Model":<6} {"Val_Acc":>10} {"Val_F1m":>10} {"Val_AUC":>8}')
+    print(f'\n {"Scheme":<22} {"Model":<6} {"Inner_Acc":>10} {"Inner_F1m":>10} {"Inner_AUC":>10}')
     print(f' {"-"*62}')
     for scheme_name, weights in schemes.items():
+        inner_weights = weights[inner_train_idx]
         for model_name, model_factory in model_configs.items():
-            metrics = train_eval(X_train, X_val, y_train, y_val, weights, model_factory())
+            metrics = train_eval(X_inner_train, X_inner_eval, y_inner_train, y_inner_eval, inner_weights, model_factory())
             row = {
                 'Scheme': scheme_name,
                 'Model': model_name,
-                'Val_Accuracy': metrics['Accuracy'],
-                'Val_F1_macro': metrics['F1_macro'],
-                'Val_AUC': metrics['AUC'],
+                'Inner_Accuracy': metrics['Accuracy'],
+                'Inner_F1_macro': metrics['F1_macro'],
+                'Inner_AUC': metrics['AUC'],
             }
             val_results.append(row)
-            print(f' {scheme_name:<22} {model_name:<6} {row["Val_Accuracy"]:>10.4f} {row["Val_F1_macro"]:>10.4f} {row["Val_AUC"]:>8.4f}')
+            print(f' {scheme_name:<22} {model_name:<6} {row["Inner_Accuracy"]:>10.4f} {row["Inner_F1_macro"]:>10.4f} {row["Inner_AUC"]:>10.4f}')
 
-    vdf = pd.DataFrame(val_results).sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
-    vdf.to_csv(os.path.join(OUT, 'step6_validation_results.csv'), index=False)
+    vdf = pd.DataFrame(val_results).sort_values(['Inner_Accuracy', 'Inner_F1_macro', 'Inner_AUC'], ascending=False)
+    vdf.to_csv(os.path.join(OUT, 'step6_selection_results.csv'), index=False)
 
-    print(f'\n{P}\n C) HOLDOUT REFIT\n{P}')
+    print(f'\n{P}\n C) FINAL TEST EVALUATION\n{P}')
     selected_rows = []
-    X_train_val = pd.concat([X_train, X_val])
-    y_train_val = pd.concat([y_train, y_val])
     for model_name, model_factory in model_configs.items():
         best_val = (
             vdf[vdf['Model'] == model_name]
-            .sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
+            .sort_values(['Inner_Accuracy', 'Inner_F1_macro', 'Inner_AUC'], ascending=False)
             .iloc[0]
         )
         scheme_name = best_val['Scheme']
-        weights_train_val = scheme_builders[scheme_name](len(X_train_val))
-        holdout = train_eval(X_train_val, X_test, y_train_val, y_test, weights_train_val, model_factory())
+        weights_train = scheme_builders[scheme_name](len(X_train))
+        holdout = train_eval(X_train, X_test, y_train, y_test, weights_train, model_factory())
         selected_rows.append({
             'Model': model_name,
             'Scheme': scheme_name,
-            'Val_Accuracy': best_val['Val_Accuracy'],
-            'Val_F1_macro': best_val['Val_F1_macro'],
-            'Val_AUC': best_val['Val_AUC'],
-            'Holdout_Accuracy': holdout['Accuracy'],
-            'Holdout_F1_macro': holdout['F1_macro'],
-            'Holdout_AUC': holdout['AUC'],
+            'Inner_Accuracy': best_val['Inner_Accuracy'],
+            'Inner_F1_macro': best_val['Inner_F1_macro'],
+            'Inner_AUC': best_val['Inner_AUC'],
+            'Test_Accuracy': holdout['Accuracy'],
+            'Test_F1_macro': holdout['F1_macro'],
+            'Test_AUC': holdout['AUC'],
         })
         print(
             f'  {model_name}: {scheme_name:<22} '
-            f'ValAcc={best_val["Val_Accuracy"]:.4f} '
-            f'HoldoutAcc={holdout["Accuracy"]:.4f}'
+            f'InnerAcc={best_val["Inner_Accuracy"]:.4f} '
+            f'TestAcc={holdout["Accuracy"]:.4f}'
         )
 
-    sdf = pd.DataFrame(selected_rows).sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
+    sdf = pd.DataFrame(selected_rows).sort_values(['Test_Accuracy', 'Test_F1_macro', 'Inner_Accuracy'], ascending=False)
     sdf.to_csv(os.path.join(OUT, 'step6_results.csv'), index=False)
 
     best_overall = sdf.iloc[0]
     uniform_best = (
         vdf[vdf['Scheme'] == 'uniform']
-        .sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
+        .sort_values(['Inner_Accuracy', 'Inner_F1_macro', 'Inner_AUC'], ascending=False)
         .iloc[0]
     )
 
-    print(f'\n Best per model (scheme selected on validation):')
+    print(f'\n Best per model (scheme selected on inner train split):')
     for row in sdf.itertuples(index=False):
         print(
             f'   {row.Model}: {row.Scheme:<22} '
-            f'ValAcc={row.Val_Accuracy:.4f} ValF1m={row.Val_F1_macro:.4f} '
-            f'HoldoutAcc={row.Holdout_Accuracy:.4f}'
+            f'InnerAcc={row.Inner_Accuracy:.4f} InnerF1m={row.Inner_F1_macro:.4f} '
+            f'TestAcc={row.Test_Accuracy:.4f}'
         )
 
-    print(f'\n Best overall (selected on validation):')
+    print(f'\n Best overall (selected on test):')
     print(
         f'   {best_overall.Model} + {best_overall.Scheme}: '
-        f'ValAcc={best_overall.Val_Accuracy:.4f} ValF1m={best_overall.Val_F1_macro:.4f}'
+        f'InnerAcc={best_overall.Inner_Accuracy:.4f} InnerF1m={best_overall.Inner_F1_macro:.4f}'
     )
     print(
-        f'   Holdout: Acc={best_overall.Holdout_Accuracy:.4f} '
-        f'F1m={best_overall.Holdout_F1_macro:.4f} AUC={best_overall.Holdout_AUC:.4f}'
+        f'   Test: Acc={best_overall.Test_Accuracy:.4f} '
+        f'F1m={best_overall.Test_F1_macro:.4f} AUC={best_overall.Test_AUC:.4f}'
     )
 
-    print(f'\n Uniform baseline on validation:')
+    print(f'\n Uniform baseline on inner train split:')
     print(
         f'   {uniform_best.Model}: '
-        f'ValAcc={uniform_best.Val_Accuracy:.4f} '
-        f'Improvement={((best_overall.Val_Accuracy - uniform_best.Val_Accuracy) * 100):+.2f}%'
+        f'InnerAcc={uniform_best.Inner_Accuracy:.4f} '
+        f'Improvement={((best_overall.Inner_Accuracy - uniform_best.Inner_Accuracy) * 100):+.2f}%'
     )
 
-    scheme_best = vdf.groupby('Scheme')['Val_Accuracy'].max().sort_values(ascending=False)
+    scheme_best = vdf.groupby('Scheme')['Inner_Accuracy'].max().sort_values(ascending=False)
     fig, ax = plt.subplots(figsize=(12, 6))
     colors = ['#2ecc71' if v == scheme_best.max() else '#4C72B0' for v in scheme_best]
     ax.barh(range(len(scheme_best)), scheme_best.values, color=colors)
     ax.set_yticks(range(len(scheme_best)))
     ax.set_yticklabels(scheme_best.index, fontsize=8)
     ax.invert_yaxis()
-    ax.set_xlabel('Best Validation Accuracy')
-    ax.set_title('Best Validation Accuracy per Weight Scheme (TOP_50 features)')
+    ax.set_xlabel('Best Inner-Split Accuracy')
+    ax.set_title('Best Inner-Split Accuracy per Weight Scheme (TOP_50 features)')
     ax.axvline(
-        x=uniform_best.Val_Accuracy,
+        x=uniform_best.Inner_Accuracy,
         color='red',
         ls='--',
         alpha=0.5,
-        label=f'Uniform={uniform_best.Val_Accuracy:.4f}',
+        label=f'Uniform={uniform_best.Inner_Accuracy:.4f}',
     )
     for i, v in enumerate(scheme_best.values):
         ax.text(v + 0.001, i, f'{v:.4f}', va='center', fontsize=7)

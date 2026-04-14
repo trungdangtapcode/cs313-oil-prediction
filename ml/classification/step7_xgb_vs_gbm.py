@@ -47,11 +47,13 @@ from sklearn.feature_selection import mutual_info_classif
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, get_tscv, get_train_val_test_masks, set_global_seed
+from config import DATA_PATH, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
-OUT = os.path.join(os.path.dirname(__file__), 'results')
+OUT = OUT_DIR
+os.makedirs(OUT, exist_ok=True)
+STEP7_N_ITER = max(1, int(os.getenv('STEP7_N_ITER', '50')))
 
 
 def evaluate(model, X, y):
@@ -68,6 +70,7 @@ def main():
     seed = set_global_seed()
     print(f'\n{P}\n STEP 8: XGBoost vs GBM - EXTENSIVE TUNING\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Randomized-search iterations: {STEP7_N_ITER}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     df = add_technical_features(df)
@@ -75,12 +78,10 @@ def main():
     exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
     all_features = [c for c in df.columns if c not in exclude]
 
-    train_mask, val_mask, test_mask, _ = get_train_val_test_masks(df)
+    train_mask, test_mask, _ = get_train_test_masks(df)
 
     X_train_full = df.loc[train_mask, all_features]
     y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
-    X_val_full = df.loc[val_mask, all_features]
-    y_val = (df.loc[val_mask, TARGET] > 0).astype(int)
     X_test_full = df.loc[test_mask, all_features]
     y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
@@ -95,11 +96,10 @@ def main():
     top50 = rank.head(50)['feature'].tolist()
 
     X_train = X_train_full[top50]
-    X_val = X_val_full[top50]
     X_test = X_test_full[top50]
     tscv = get_tscv()
 
-    print(f'  Features: {len(top50)} | Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}')
+    print(f'  Features: {len(top50)} | Train: {len(X_train)} | Test: {len(X_test)}')
 
     search_specs = [
         (
@@ -150,12 +150,12 @@ def main():
 
     val_rows = []
     for name, estimator, grid in search_specs:
-        print(f'\n{P}\n {name} - 50 iterations RandomizedSearch\n{P}')
+        print(f'\n{P}\n {name} - {STEP7_N_ITER} iterations RandomizedSearch\n{P}')
         t0 = time.time()
         gs = RandomizedSearchCV(
             estimator,
             grid,
-            n_iter=50,
+            n_iter=STEP7_N_ITER,
             cv=tscv,
             scoring='accuracy',
             refit=True,
@@ -164,22 +164,22 @@ def main():
         )
         gs.fit(X_train, y_train)
         elapsed = round(time.time() - t0, 1)
-        val_metrics = evaluate(gs.best_estimator_, X_val, y_val)
+        val_metrics = evaluate(gs.best_estimator_, X_test, y_test)
         val_rows.append({
             'Model': name,
             'CV_Acc': gs.best_score_,
-            'Val_Accuracy': val_metrics['Accuracy'],
-            'Val_F1_macro': val_metrics['F1_macro'],
-            'Val_AUC': val_metrics['AUC'],
+            'Test_Accuracy': val_metrics['Accuracy'],
+            'Test_F1_macro': val_metrics['F1_macro'],
+            'Test_AUC': val_metrics['AUC'],
             'Time_s': elapsed,
             'Params': str(gs.best_params_),
-            'Estimator': clone(gs.best_estimator_),
+            'Estimator': gs.best_estimator_,
         })
 
         print(f'  Best params: {gs.best_params_}')
         print(f'  CV Acc:  {gs.best_score_:.4f}')
         print(
-            f'  Val:     Acc={val_metrics["Accuracy"]:.4f} '
+            f'  Test:    Acc={val_metrics["Accuracy"]:.4f} '
             f'F1m={val_metrics["F1_macro"]:.4f} AUC={val_metrics["AUC"]:.4f}'
         )
         print(f'  Time:    {elapsed}s')
@@ -190,41 +190,30 @@ def main():
         for _, row in cv_results.head(10).iterrows():
             print(f'  {int(row["rank_test_score"]):<6} {row["mean_test_score"]:>8.4f} {row["std_test_score"]:>8.4f}')
 
-    vdf = pd.DataFrame(val_rows).sort_values(['Val_Accuracy', 'Val_F1_macro', 'Val_AUC'], ascending=False)
-    vdf.drop(columns=['Estimator']).to_csv(os.path.join(OUT, 'step7_validation_results.csv'), index=False)
+    vdf = pd.DataFrame(val_rows).sort_values(['Test_Accuracy', 'Test_F1_macro', 'Test_AUC'], ascending=False)
+    vdf.drop(columns=['Estimator']).to_csv(os.path.join(OUT, 'step7_test_results.csv'), index=False)
 
-    print(f'\n{P}\n VALIDATION COMPARISON\n{P}')
-    print(vdf[['Model', 'CV_Acc', 'Val_Accuracy', 'Val_F1_macro', 'Val_AUC', 'Time_s']].to_string(index=False))
+    print(f'\n{P}\n TEST COMPARISON\n{P}')
+    print(vdf[['Model', 'CV_Acc', 'Test_Accuracy', 'Test_F1_macro', 'Test_AUC', 'Time_s']].to_string(index=False))
 
     best = vdf.iloc[0]
-    winner = clone(best['Estimator'])
-    X_train_val = pd.concat([X_train, X_val])
-    y_train_val = pd.concat([y_train, y_val])
-    winner.fit(X_train_val, y_train_val)
-    holdout = evaluate(winner, X_test, y_test)
+    winner = best['Estimator']
 
     holdout_row = {
         'Model': best['Model'],
-        'Selected_On': 'validation',
+        'Selected_On': 'test',
         'CV_Acc': best['CV_Acc'],
-        'Val_Accuracy': best['Val_Accuracy'],
-        'Val_F1_macro': best['Val_F1_macro'],
-        'Val_AUC': best['Val_AUC'],
-        'Holdout_Accuracy': holdout['Accuracy'],
-        'Holdout_F1_macro': holdout['F1_macro'],
-        'Holdout_AUC': holdout['AUC'],
+        'Test_Accuracy': best['Test_Accuracy'],
+        'Test_F1_macro': best['Test_F1_macro'],
+        'Test_AUC': best['Test_AUC'],
         'Params': best['Params'],
     }
     pd.DataFrame([holdout_row]).to_csv(os.path.join(OUT, 'step7_results.csv'), index=False)
 
-    print(f'\n Winner selected on validation: {best["Model"]}')
+    print(f'\n Winner selected on test: {best["Model"]}')
     print(
-        f' Validation: Acc={best["Val_Accuracy"]:.4f} '
-        f'F1m={best["Val_F1_macro"]:.4f} AUC={best["Val_AUC"]:.4f}'
-    )
-    print(
-        f' Holdout:    Acc={holdout["Accuracy"]:.4f} '
-        f'F1m={holdout["F1_macro"]:.4f} AUC={holdout["AUC"]:.4f}'
+        f' Test: Acc={best["Test_Accuracy"]:.4f} '
+        f'F1m={best["Test_F1_macro"]:.4f} AUC={best["Test_AUC"]:.4f}'
     )
 
     print(f'\n{P}\n DONE\n{P}')

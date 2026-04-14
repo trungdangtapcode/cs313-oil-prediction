@@ -1,0 +1,6 @@
+step	status	log
+step2	FAIL(127)	/home/vund/.svn/ml/classification/results_step5b/logs/run_step5b/step2.log
+step4	FAIL(127)	/home/vund/.svn/ml/classification/results_step5b/logs/run_step5b/step4.log
+step5	FAIL(127)	/home/vund/.svn/ml/classification/results_step5b/logs/run_step5b/step5.log
+step6	FAIL(127)	/home/vund/.svn/ml/classification/results_step5b/logs/run_step5b/step6.log
+step7	FAIL(127)	/home/vund/.svn/ml/classification/results_step5b/logs/run_step5b/step7.log

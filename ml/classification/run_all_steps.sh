@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 VENV_PY="${ROOT_DIR}/.venv/bin/python"
-LOG_DIR="${ROOT_DIR}/ml/classification/results/logs"
+OUT_DIR="${CLASSIFICATION_OUT_DIR:-${ROOT_DIR}/ml/classification/results}"
+LOG_DIR="${CLASSIFICATION_LOG_DIR:-${OUT_DIR}/logs}"
 
 mkdir -p "${LOG_DIR}" /tmp/mpl
 
@@ -31,4 +32,3 @@ for step in "${steps[@]}"; do
   MPLCONFIGDIR=/tmp/mpl PYTHONUNBUFFERED=1 "${VENV_PY}" "${ROOT_DIR}/ml/classification/${step}" \
     | tee "${log_file}"
 done
-

@@ -1,0 +1,11 @@
+feature
+oil_return_lag1
+yield_spread
+oil_return
+inventory_change_pct
+gdelt_tone_lag1
+sp500_return
+production_change_pct_slog1p
+day_of_week_sin
+oil_return_lag5
+gdelt_goldstein

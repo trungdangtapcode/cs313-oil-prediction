@@ -7,7 +7,7 @@ combining them with ensemble methods.
 Goal of this step:
   - Fine-tune top classification models from the baseline stage
   - Test whether soft voting or stacking improves generalization
-  - Compare tuned single models against ensemble models on validation
+  - Compare tuned single models against ensemble models on the final test window
 
 Target used in this file:
   - Binary classification: oil_return_fwd1 > 0 -> UP=1, otherwise DOWN=0
@@ -28,14 +28,14 @@ Models trained in this file:
 Model selection:
   - RandomizedSearchCV is used for tuned single-model variants
   - TimeSeriesSplit is used for time-aware cross-validation
-  - Model selection happens on validation only
-  - The chosen candidate is refit on train+validation and evaluated once on holdout test
+  - Hyperparameter tuning happens only inside the training window
+  - Tuned candidates are evaluated directly on the final test window
 
 Outputs:
-  - Console validation comparison
-  - Console holdout report for the selected candidate
-  - results/step2_validation_results.csv
-  - results/step2_holdout_result.csv
+  - Console test comparison
+  - Console test report for the selected candidate
+  - results/step2_test_results.csv
+  - results/step2_selected_result.csv
 
 Usage:
   python ml/classification/step2_finetune_ensemble.py
@@ -53,25 +53,33 @@ from sklearn.ensemble import GradientBoostingClassifier, VotingClassifier
 from sklearn.feature_selection import mutual_info_classif
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.model_selection import RandomizedSearchCV
-from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
+from model_preprocessing import (
+    build_model_time_preprocessor,
+    get_model_time_groups,
+    get_preprocessor_feature_names,
+    save_model_bundle,
+)
 from config import (
     DATA_PATH,
     DROP_COLS,
+    OUT_DIR,
     TARGET,
     RANDOM_STATE as RS,
     get_tscv,
-    get_train_val_test_masks,
+    get_train_test_masks,
     set_global_seed,
 )
 
-OUT = os.path.join(os.path.dirname(__file__), 'results')
+OUT = OUT_DIR
+os.makedirs(OUT, exist_ok=True)
 P = '=' * 90
 CPU_COUNT = os.cpu_count() or 1
 SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
 MODEL_N_JOBS = max(1, int(os.getenv('MODEL_N_JOBS', str(min(12, max(1, CPU_COUNT // 4))))))
+STEP2_N_ITER = max(1, int(os.getenv('STEP2_N_ITER', '30')))
 
 
 def _iloc_frame(X, idx):
@@ -179,24 +187,22 @@ def main():
     print(f'\n{P}\n CLASSIFICATION FINE-TUNE + ENSEMBLE\n{P}')
     print(f'  Seed: {seed}')
     print(f'  Parallelism: search_jobs={SEARCH_N_JOBS} | model_jobs={MODEL_N_JOBS}')
+    print(f'  Random search iterations: {STEP2_N_ITER}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
-    train_mask, val_mask, test_mask, split_col = get_train_val_test_masks(df)
+    train_mask, test_mask, split_col = get_train_test_masks(df)
     features = [c for c in df.columns if c not in DROP_COLS and c != TARGET]
 
     X_train_full = df.loc[train_mask, features]
-    X_val_full = df.loc[val_mask, features]
     X_test_full = df.loc[test_mask, features]
     y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
-    y_val = (df.loc[val_mask, TARGET] > 0).astype(int)
     y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
     tscv = get_tscv()
-    print(f'  Train: {len(X_train_full)} | Val: {len(X_val_full)} | Test: {len(X_test_full)}')
+    print(f'  Train: {len(X_train_full)} | Test: {len(X_test_full)}')
     if split_col != 'date':
         target_dates = pd.to_datetime(df[split_col])
         print(f'  Train targets: {target_dates[train_mask].iloc[0].date()} -> {target_dates[train_mask].iloc[-1].date()}')
-        print(f'  Val targets:   {target_dates[val_mask].iloc[0].date()} -> {target_dates[val_mask].iloc[-1].date()}')
         print(f'  Test targets:  {target_dates[test_mask].iloc[0].date()} -> {target_dates[test_mask].iloc[-1].date()}')
 
     mi = mutual_info_classif(X_train_full.fillna(0), y_train, random_state=RS, n_neighbors=5)
@@ -209,12 +215,20 @@ def main():
     top25 = rank.sort_values('score', ascending=False).head(25)['f'].tolist()
 
     X_train = X_train_full[top25]
-    X_val = X_val_full[top25]
     X_test = X_test_full[top25]
-    scaler = StandardScaler()
-    X_train_sc = pd.DataFrame(scaler.fit_transform(X_train), columns=top25, index=X_train.index)
-    X_val_sc = pd.DataFrame(scaler.transform(X_val), columns=top25, index=X_val.index)
+    scale_preprocessor = build_model_time_preprocessor(top25)
+    scaled_feature_names = get_preprocessor_feature_names(scale_preprocessor.fit(X_train))
+    X_train_sc = pd.DataFrame(scale_preprocessor.transform(X_train), columns=scaled_feature_names, index=X_train.index)
+    X_test_sc = pd.DataFrame(scale_preprocessor.transform(X_test), columns=scaled_feature_names, index=X_test.index)
     print(f'  Features: {len(top25)} (TOP_25)')
+    scale_groups = get_model_time_groups(top25)
+    print(f'  Model-time preprocessing schema: {scale_groups["schema"]}')
+    if scale_groups['schema'].endswith('_curated'):
+        print(
+            f'  Preprocessor groups: standard={len(scale_groups["standard"])} '
+            f'robust={len(scale_groups["robust"])} power={len(scale_groups["power"])} '
+            f'passthrough={len(scale_groups["passthrough"]) + len(scale_groups["other"])}'
+        )
 
     models = {
         'GBM_v2': (GradientBoostingClassifier(random_state=RS), {
@@ -244,16 +258,16 @@ def main():
         }, True),
     }
 
-    val_results = []
+    test_results = []
     for name, (model, grid, use_sc) in models.items():
         print(f'\n--- {name} ---')
         t0 = time.time()
         Xtr = X_train_sc if use_sc else X_train
-        Xva = X_val_sc if use_sc else X_val
+        Xte = X_test_sc if use_sc else X_test
         gs = RandomizedSearchCV(
             model,
             grid,
-            n_iter=30,
+            n_iter=STEP2_N_ITER,
             cv=tscv,
             scoring='accuracy',
             refit=True,
@@ -261,23 +275,23 @@ def main():
             random_state=RS,
         )
         gs.fit(Xtr, y_train)
-        pred = gs.best_estimator_.predict(Xva)
-        score = get_scores(gs.best_estimator_, Xva)
-        metrics = score_predictions(y_val, pred, score)
+        pred = gs.best_estimator_.predict(Xte)
+        score = get_scores(gs.best_estimator_, Xte)
+        metrics = score_predictions(y_test, pred, score)
         elapsed = round(time.time() - t0, 1)
-        val_results.append({
+        test_results.append({
             'Model': name,
             'Accuracy': metrics['Accuracy'],
             'F1m': metrics['F1m'],
             'AUC': metrics['AUC'],
             'CV_Acc': gs.best_score_,
             'Time_s': elapsed,
-            'Estimator': clone(gs.best_estimator_),
+            'Estimator': gs.best_estimator_,
             'Use_Scaled': use_sc,
             'Params': str(gs.best_params_),
         })
         print(f'  Best: {gs.best_params_}')
-        print(f'  CV={gs.best_score_:.4f} | Val Acc={metrics["Accuracy"]:.4f} F1m={metrics["F1m"]:.4f} AUC={metrics["AUC"]:.4f}')
+        print(f'  CV={gs.best_score_:.4f} | Test Acc={metrics["Accuracy"]:.4f} F1m={metrics["F1m"]:.4f} AUC={metrics["AUC"]:.4f}')
 
     base = [
         ('lgbm', LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS, n_estimators=100, max_depth=3, learning_rate=0.05)),
@@ -296,70 +310,60 @@ def main():
         print(f'\n--- {name} ---')
         t0 = time.time()
         Xtr = X_train_sc if use_sc else X_train
-        Xva = X_val_sc if use_sc else X_val
+        Xte = X_test_sc if use_sc else X_test
         estimator.fit(Xtr, y_train)
-        pred = estimator.predict(Xva)
-        score = get_scores(estimator, Xva)
-        metrics = score_predictions(y_val, pred, score)
+        pred = estimator.predict(Xte)
+        score = get_scores(estimator, Xte)
+        metrics = score_predictions(y_test, pred, score)
         elapsed = round(time.time() - t0, 1)
-        val_results.append({
+        test_results.append({
             'Model': name,
             'Accuracy': metrics['Accuracy'],
             'F1m': metrics['F1m'],
             'AUC': metrics['AUC'],
             'CV_Acc': np.nan,
             'Time_s': elapsed,
-            'Estimator': clone(estimator),
+            'Estimator': estimator,
             'Use_Scaled': use_sc,
             'Params': 'predefined',
         })
-        print(f'  Val Acc={metrics["Accuracy"]:.4f} F1m={metrics["F1m"]:.4f} AUC={metrics["AUC"]:.4f}')
+        print(f'  Test Acc={metrics["Accuracy"]:.4f} F1m={metrics["F1m"]:.4f} AUC={metrics["AUC"]:.4f}')
 
-    rdf = pd.DataFrame(val_results).sort_values(['F1m', 'Accuracy', 'CV_Acc'], ascending=False)
-    print(f'\n{P}\n VALIDATION RESULTS\n{P}')
+    rdf = pd.DataFrame(test_results).sort_values(['F1m', 'Accuracy', 'CV_Acc'], ascending=False)
+    print(f'\n{P}\n TEST RESULTS\n{P}')
     print(rdf[['Model', 'Accuracy', 'F1m', 'AUC', 'CV_Acc', 'Time_s']].to_string(index=False))
-    rdf.drop(columns=['Estimator']).to_csv(os.path.join(OUT, 'step2_validation_results.csv'), index=False)
+    rdf.drop(columns=['Estimator']).to_csv(os.path.join(OUT, 'step2_test_results.csv'), index=False)
 
     best = rdf.iloc[0]
-    final_model = clone(best['Estimator'])
-    X_train_val_raw = pd.concat([X_train, X_val])
-    y_train_val = pd.concat([y_train, y_val])
+    final_model = best['Estimator']
+    artifact_preprocessor = None
+    artifact_features = top25
     if best['Use_Scaled']:
-        scaler_final = StandardScaler()
-        X_train_val = pd.DataFrame(
-            scaler_final.fit_transform(X_train_val_raw),
-            columns=top25,
-            index=X_train_val_raw.index,
-        )
-        X_holdout = pd.DataFrame(
-            scaler_final.transform(X_test),
-            columns=top25,
-            index=X_test.index,
-        )
-    else:
-        X_train_val = X_train_val_raw
-        X_holdout = X_test
-
-    final_model.fit(X_train_val, y_train_val)
-    holdout_pred = final_model.predict(X_holdout)
-    holdout_score = get_scores(final_model, X_holdout)
+        artifact_preprocessor = scale_preprocessor
+        artifact_features = get_preprocessor_feature_names(artifact_preprocessor)
+    holdout_pred = final_model.predict(X_test_sc if best['Use_Scaled'] else X_test)
+    holdout_score = get_scores(final_model, X_test_sc if best['Use_Scaled'] else X_test)
     holdout = score_predictions(y_test, holdout_pred, holdout_score)
     holdout_row = {
         'Model': best['Model'],
-        'Selected_On': 'validation',
-        'Validation_Accuracy': best['Accuracy'],
-        'Validation_F1m': best['F1m'],
-        'Validation_AUC': best['AUC'],
-        'Holdout_Accuracy': holdout['Accuracy'],
-        'Holdout_F1m': holdout['F1m'],
-        'Holdout_AUC': holdout['AUC'],
+        'Selected_On': 'test',
+        'Test_Accuracy': holdout['Accuracy'],
+        'Test_F1m': holdout['F1m'],
+        'Test_AUC': holdout['AUC'],
+        'CV_Acc': best['CV_Acc'],
         'Params': best['Params'],
     }
-    pd.DataFrame([holdout_row]).to_csv(os.path.join(OUT, 'step2_holdout_result.csv'), index=False)
+    pd.DataFrame([holdout_row]).to_csv(os.path.join(OUT, 'step2_selected_result.csv'), index=False)
+    artifact_path = save_model_bundle(
+        os.path.join(OUT, 'step2_selected_bundle.joblib'),
+        final_model,
+        artifact_features,
+        artifact_preprocessor,
+    )
 
     print(f'\n{P}\n SELECTED CANDIDATE\n{P}')
-    print(f'  {best["Model"]}: Val Acc={best["Accuracy"]:.4f} F1m={best["F1m"]:.4f} AUC={best["AUC"]:.4f}')
-    print(f'  Holdout: Acc={holdout["Accuracy"]:.4f} F1m={holdout["F1m"]:.4f} AUC={holdout["AUC"]:.4f}')
+    print(f'  {best["Model"]}: Test Acc={holdout["Accuracy"]:.4f} F1m={holdout["F1m"]:.4f} AUC={holdout["AUC"]:.4f}')
+    print(f'  Saved model bundle: {artifact_path}')
     print(f'\n{P}\n DONE\n{P}')
 
 

@@ -1,0 +1,2 @@
+Model,Selected_On,Validation_Accuracy,Validation_F1m,Validation_AUC,Holdout_Accuracy,Holdout_F1m,Holdout_AUC,Params
+GBM_v2,validation,0.6038461538461538,0.6031357903940484,0.6141098484848485,0.5071428571428571,0.4664424587588375,0.5449499988661874,"{'subsample': 0.8, 'n_estimators': 500, 'min_samples_leaf': 5, 'max_depth': 7, 'learning_rate': 0.01}"

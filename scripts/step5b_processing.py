@@ -1,10 +1,12 @@
 """
 ================================================================================
-STEP 5B: LEAKAGE-SAFE FEATURE PROCESSING FOR THE NO-LEAK DATASET
+STEP 5B: CANONICAL LEAKAGE-SAFE FEATURE PROCESSING
 ================================================================================
 
-This step continues from step4b_fix_leakage.py and creates a processed variant of
-dataset_final_noleak.csv using only deterministic, leakage-safe transforms:
+This is the canonical processed dataset step after step4b_fix_leakage.py.
+
+It creates a processed variant of dataset_final_noleak.csv using only
+deterministic, leakage-safe transforms:
 
   - cyclical encoding for calendar features
   - log1p for heavy-tailed positive features
@@ -13,6 +15,12 @@ dataset_final_noleak.csv using only deterministic, leakage-safe transforms:
 It intentionally does NOT fit StandardScaler / RobustScaler / PowerTransformer on
 the full dataset because those should be fit on the training split only inside the
 model pipeline.
+
+Guidance:
+  - Treat this file as the final deterministic processing step for the dataset.
+  - Do NOT create a separate "step5c" data variant unless the transforms actually
+    change.
+  - Train-time preprocessing groups live in ml/model_preprocessing.py.
 
 Outputs:
   - data/processed/dataset_final_noleak_processed.csv

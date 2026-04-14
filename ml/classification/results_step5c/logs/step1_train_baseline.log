@@ -1,0 +1,86 @@
+
+==========================================================================================
+ CLASSIFICATION - Oil Price Direction (UP/DOWN)
+==========================================================================================
+  Seed: 42
+  Features: 27
+  Train: 2082 | Test: 840
+  Model-time preprocessing schema: step5c_train_curated
+  Preprocessor groups: standard=5 robust=15 power=3 passthrough=4
+  Train targets: 2015-01-08 -> 2022-12-30
+  Test targets:  2023-01-02 -> 2026-03-20
+
+  Target distribution (Train): UP=1069 (51.3%) | DOWN=1013 (48.7%)
+  Target distribution (Test):  UP=418 (49.8%) | DOWN=422 (50.2%)
+
+--- LogisticRegression ---
+  Best params: {'C': 10.0, 'penalty': 'l1', 'solver': 'saga'}
+  CV Accuracy: 0.5470
+  Test Accuracy:   0.5119
+  Test F1 (binary): 0.4675
+  Test F1 (macro):  0.5085
+  Test AUC:         0.5249
+  Test Confusion:   TP=180 FP=172 TN=250 FN=238
+  Time:            3.1s
+
+--- SVM_RBF ---
+  Best params: {'C': 1.0, 'gamma': 'auto', 'kernel': 'rbf'}
+  CV Accuracy: 0.5429
+  Test Accuracy:   0.5024
+  Test F1 (binary): 0.3589
+  Test F1 (macro):  0.4761
+  Test AUC:         0.5135
+  Test Confusion:   TP=117 FP=117 TN=305 FN=301
+  Time:            3.5s
+
+--- SVM_Linear ---
+  Best params: {'C': 0.01}
+  CV Accuracy: 0.5349
+  Test Accuracy:   0.5095
+  Test F1 (binary): 0.4811
+  Test F1 (macro):  0.5080
+  Test AUC:         0.5232
+  Test Confusion:   TP=191 FP=185 TN=237 FN=227
+  Time:            4.8s
+
+--- RandomForest ---
+  Best params: {'max_depth': 10, 'min_samples_leaf': 10, 'n_estimators': 300}
+  CV Accuracy: 0.5481
+  Test Accuracy:   0.5119
+  Test F1 (binary): 0.3366
+  Test F1 (macro):  0.4753
+  Test AUC:         0.5377
+  Test Confusion:   TP=104 FP=96 TN=326 FN=314
+  Time:            78.8s
+
+--- GradientBoosting ---
+  Best params: {'learning_rate': 0.01, 'max_depth': 5, 'n_estimators': 300}
+  CV Accuracy: 0.5435
+  Test Accuracy:   0.5190
+  Test F1 (binary): 0.3608
+  Test F1 (macro):  0.4876
+  Test AUC:         0.5354
+  Test Confusion:   TP=114 FP=100 TN=322 FN=304
+  Time:            330.4s
+
+--- XGBoost ---
+  Best params: {'learning_rate': 0.1, 'max_depth': 5, 'n_estimators': 100, 'reg_alpha': 0}
+  CV Accuracy: 0.5504
+  Test Accuracy:   0.5083
+  Test F1 (binary): 0.3496
+  Test F1 (macro):  0.4772
+  Test AUC:         0.5458
+  Test Confusion:   TP=111 FP=106 TN=316 FN=307
+  Time:            93.4s
+
+--- LightGBM ---
+  Best params: {'learning_rate': 0.1, 'max_depth': 5, 'n_estimators': 100, 'num_leaves': 31}
+  CV Accuracy: 0.5504
+  Test Accuracy:   0.5048
+  Test F1 (binary): 0.3158
+  Test F1 (macro):  0.4639
+  Test AUC:         0.5393
+  Test Confusion:   TP=96 FP=94 TN=328 FN=322
+  Time:            26.1s
+
+--- MLP ---

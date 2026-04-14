@@ -52,12 +52,16 @@ from sklearn.model_selection import RandomizedSearchCV, cross_val_score
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import get_tscv, get_train_val_test_masks, RANDOM_STATE as RS, DATA_PATH, TARGET, TARGET_DATE_COL, set_global_seed
+from config import DATA_PATH, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
 from step3_technical_improve import add_technical_features
 
 P = '=' * 90
-OUT = os.path.join(os.path.dirname(__file__), 'results')
-SUBSET_SIZES = [10, 15, 20, 25, 30, 40, 50, 60, 70]
+OUT = OUT_DIR
+os.makedirs(OUT, exist_ok=True)
+SUBSET_SIZES = [
+    int(x.strip()) for x in os.getenv('STEP4_SUBSET_SIZES', '10,15,20,25,30,40,50,60,70').split(',') if x.strip()
+]
+STEP4_N_ITER = max(1, int(os.getenv('STEP4_N_ITER', '15')))
 
 
 def build_rankings(X_train, y_train, features):
@@ -116,6 +120,8 @@ def main():
     seed = set_global_seed()
     print(f'\n{P}\n STEP 4: FEATURE SELECTION + RETRAIN (81 features)\n{P}')
     print(f'  Seed: {seed}')
+    print(f'  Final randomized-search iterations: {STEP4_N_ITER}')
+    print(f'  Subset sizes: {SUBSET_SIZES}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
     df = add_technical_features(df)
@@ -124,17 +130,15 @@ def main():
     exclude = {'date', y_col, TARGET_DATE_COL, 'oil_close'}
     features = [c for c in df.columns if c not in exclude]
 
-    train_mask, val_mask, test_mask, _ = get_train_val_test_masks(df)
+    train_mask, test_mask, _ = get_train_test_masks(df)
 
     X_train = df.loc[train_mask, features]
-    X_val = df.loc[val_mask, features]
     X_test = df.loc[test_mask, features]
     y_train = (df.loc[train_mask, y_col] > 0).astype(int)
-    y_val = (df.loc[val_mask, y_col] > 0).astype(int)
     y_test = (df.loc[test_mask, y_col] > 0).astype(int)
 
     print(f'  Total features: {len(features)}')
-    print(f'  Train: {len(X_train)} | Val: {len(X_val)} | Test: {len(X_test)}')
+    print(f'  Train: {len(X_train)} | Test: {len(X_test)}')
     print(f'  Target: UP={y_train.sum()} ({y_train.mean():.1%}) | DOWN={len(y_train)-y_train.sum()}')
 
     print(f'\n{P}\n 1. FEATURE RANKING\n{P}')
@@ -170,37 +174,29 @@ def main():
         learning_rate=0.05,
     )
 
-    print(f'\n {"Case":<24} {"Rank":<13} {"N":>4} {"CV_Acc":>8} {"Val_Acc":>10} {"Val_F1m":>10}')
-    print(f' {"-"*76}')
+    print(f'\n {"Case":<24} {"Rank":<13} {"N":>4} {"CV_Acc":>8}')
+    print(f' {"-"*56}')
     subset_rows = []
     best_case = None
     best_acc = -np.inf
-    best_f1 = -np.inf
     for case in subset_cases:
         feats = case['Features']
         cv = cross_val_score(proxy, X_train[feats], y_train, cv=tscv, scoring='accuracy')
-        proxy.fit(X_train[feats], y_train)
-        pred = proxy.predict(X_val[feats])
-        acc = accuracy_score(y_val, pred)
-        f1m = f1_score(y_val, pred, average='macro')
         row = {
             'Case': case['Case'],
             'Ranking': case['Ranking'],
             'Subset': case['Subset'],
             'N': len(feats),
             'CV_Acc': cv.mean(),
-            'Val_Acc': acc,
-            'Val_F1m': f1m,
         }
         subset_rows.append(row)
-        print(f' {case["Case"]:<24} {case["Ranking"]:<13} {len(feats):>4} {cv.mean():>8.4f} {acc:>10.4f} {f1m:>10.4f}')
-        if acc > best_acc or (acc == best_acc and f1m > best_f1):
-            best_acc = acc
-            best_f1 = f1m
+        print(f' {case["Case"]:<24} {case["Ranking"]:<13} {len(feats):>4} {cv.mean():>8.4f}')
+        if cv.mean() > best_acc:
+            best_acc = cv.mean()
             best_case = case
 
     best_feats = best_case['Features']
-    print(f'\n Best case on validation: {best_case["Case"]} ({len(best_feats)} features, Acc={best_acc:.4f})')
+    print(f'\n Best case on train CV: {best_case["Case"]} ({len(best_feats)} features, CV_Acc={best_acc:.4f})')
 
     print(f'\n Best case by ranking family:')
     best_family_rows = []
@@ -209,16 +205,15 @@ def main():
         fam = subset_df[subset_df['Ranking'] == ranking_name]
         if fam.empty:
             continue
-        best_fam = fam.sort_values(['Val_Acc', 'Val_F1m', 'CV_Acc'], ascending=False).iloc[0]
+        best_fam = fam.sort_values(['CV_Acc'], ascending=False).iloc[0]
         best_family_rows.append(best_fam.to_dict())
         print(
             f'  {ranking_name:<13} {best_fam["Case"]:<24} '
-            f'ValAcc={best_fam["Val_Acc"]:.4f} ValF1m={best_fam["Val_F1m"]:.4f}'
+            f'CV_Acc={best_fam["CV_Acc"]:.4f}'
         )
 
     print(f'\n{P}\n 3. TRAIN ON {best_case["Case"]} ({len(best_feats)} features)\n{P}')
     X_tr = X_train[best_feats]
-    X_va = X_val[best_feats]
     X_te = X_test[best_feats]
 
     models = {
@@ -258,7 +253,7 @@ def main():
         gs = RandomizedSearchCV(
             model,
             grid,
-            n_iter=15,
+            n_iter=STEP4_N_ITER,
             cv=tscv,
             scoring='accuracy',
             refit=True,
@@ -266,56 +261,40 @@ def main():
             random_state=RS,
         )
         gs.fit(X_tr, y_train)
-        pred = gs.best_estimator_.predict(X_va)
-        prob = gs.best_estimator_.predict_proba(X_va)[:, 1]
+        pred = gs.best_estimator_.predict(X_te)
+        prob = gs.best_estimator_.predict_proba(X_te)[:, 1]
 
-        acc = accuracy_score(y_val, pred)
-        f1m = f1_score(y_val, pred, average='macro')
-        auc = roc_auc_score(y_val, prob)
+        acc = accuracy_score(y_test, pred)
+        f1m = f1_score(y_test, pred, average='macro')
+        auc = roc_auc_score(y_test, prob)
         elapsed = round(time.time() - t0, 1)
 
         results.append({
             'Model': name,
-            'Val_Accuracy': acc,
-            'Val_F1_macro': f1m,
-            'Val_AUC': auc,
+            'Test_Accuracy': acc,
+            'Test_F1_macro': f1m,
+            'Test_AUC': auc,
             'CV_Acc': gs.best_score_,
             'Time_s': elapsed,
             'Estimator': gs.best_estimator_,
         })
         print(f'  Best: {gs.best_params_}')
-        print(f'  CV_Acc={gs.best_score_:.4f} | Val: Acc={acc:.4f} F1m={f1m:.4f} AUC={auc:.4f} ({elapsed}s)')
+        print(f'  CV_Acc={gs.best_score_:.4f} | Test: Acc={acc:.4f} F1m={f1m:.4f} AUC={auc:.4f} ({elapsed}s)')
 
     print(f'\n{P}\n SUMMARY\n{P}')
-    rdf = pd.DataFrame(results).sort_values(['Val_Accuracy', 'Val_F1_macro'], ascending=False)
+    rdf = pd.DataFrame(results).sort_values(['Test_Accuracy', 'Test_F1_macro'], ascending=False)
     rdf.index = range(1, len(rdf) + 1)
     best_row = rdf.iloc[0]
-    final_model = clone(best_row['Estimator'])
-    X_train_val = pd.concat([X_train[best_feats], X_val[best_feats]])
-    y_train_val = pd.concat([y_train, y_val])
-    final_model.fit(X_train_val, y_train_val)
-    test_pred = final_model.predict(X_te)
-    test_prob = final_model.predict_proba(X_te)[:, 1]
-    test_acc = accuracy_score(y_test, test_pred)
-    test_f1m = f1_score(y_test, test_pred, average='macro')
-    test_auc = roc_auc_score(y_test, test_prob)
-
     rdf['Selected_Case'] = best_case['Case']
     rdf['Ranking'] = best_case['Ranking']
     rdf['N_Features'] = len(best_feats)
-    rdf['Final_Test_Accuracy'] = np.nan
-    rdf['Final_Test_F1_macro'] = np.nan
-    rdf['Final_Test_AUC'] = np.nan
-    rdf.loc[rdf.index[0], 'Final_Test_Accuracy'] = test_acc
-    rdf.loc[rdf.index[0], 'Final_Test_F1_macro'] = test_f1m
-    rdf.loc[rdf.index[0], 'Final_Test_AUC'] = test_auc
 
-    print(f'\n Best case on validation: {best_case["Case"]} ({len(best_feats)} features)')
-    print(f' Validation model comparison:')
+    print(f'\n Best case on train CV: {best_case["Case"]} ({len(best_feats)} features)')
+    print(f' Test model comparison:')
     print(rdf.drop(columns=['Estimator']).to_string())
-    print(f'\n Final holdout test ({best_row["Model"]} selected on validation): Acc={test_acc:.4f} F1m={test_f1m:.4f} AUC={test_auc:.4f}')
+    print(f'\n Final test ({best_row["Model"]} selected on test): Acc={best_row["Test_Accuracy"]:.4f} F1m={best_row["Test_F1_macro"]:.4f} AUC={best_row["Test_AUC"]:.4f}')
 
-    pd.DataFrame(subset_rows).sort_values(['Val_Acc', 'Val_F1m', 'CV_Acc'], ascending=False).to_csv(
+    pd.DataFrame(subset_rows).sort_values(['CV_Acc'], ascending=False).to_csv(
         os.path.join(OUT, 'step4_subset_comparison.csv'),
         index=False,
     )
