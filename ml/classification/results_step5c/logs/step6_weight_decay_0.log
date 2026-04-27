@@ -3,7 +3,7 @@
  STEP 7: WEIGHT DECAY
 ==========================================================================================
   Seed: 42
-  Parallelism: model_jobs=12
+  Parallelism: model_jobs=4
   Features: 50 (TOP_50)
   Train: 2032 | Test: 840
   Inner split for scheme selection: train=1694 | eval=338
@@ -66,32 +66,21 @@
 ==========================================================================================
  C) FINAL TEST EVALUATION
 ==========================================================================================
+  GBM: step_50pct_2x          InnerAcc=0.5740 TestAcc=0.5226
+  XGB: exp_hl100              InnerAcc=0.5976 TestAcc=0.5179
+  LGBM: step_50pct_3x          InnerAcc=0.5799 TestAcc=0.5214
 
- Top 12 all-scheme test results:
-       Scheme Model  Test_Accuracy  Test_F1_macro  Test_AUC
-    exp_hl100  LGBM       0.539286       0.539285  0.531327
-step_50pct_3x   XGB       0.538095       0.485749  0.550098
-   exp_hl1000   XGB       0.528571       0.472439  0.543170
-    linear_03   GBM       0.527381       0.493585  0.555353
-      uniform   XGB       0.527381       0.471565  0.574622
-    exp_hl250   GBM       0.526190       0.499494  0.520675
-step_30pct_3x   GBM       0.526190       0.483305  0.540086
-    linear_01  LGBM       0.526190       0.473382  0.552257
-step_30pct_3x  LGBM       0.525000       0.491700  0.543340
-step_50pct_3x   GBM       0.525000       0.481619  0.550035
-      uniform   GBM       0.525000       0.480835  0.558731
-   exp_hl1000  LGBM       0.525000       0.477611  0.548522
-  GBM: step_50pct_2x          TestAcc=0.5226 TestF1m=0.4790 TestAUC=0.5550
-  XGB: exp_hl100              TestAcc=0.5179 TestF1m=0.5172 TestAUC=0.5143
-  LGBM: step_50pct_3x          TestAcc=0.5214 TestF1m=0.4635 TestAUC=0.5532
-
- Test results per model (scheme chosen from inner selection):
-   GBM: step_50pct_2x          TestAcc=0.5226 TestF1m=0.4790 TestAUC=0.5550
-   LGBM: step_50pct_3x          TestAcc=0.5214 TestF1m=0.4635 TestAUC=0.5532
-   XGB: exp_hl100              TestAcc=0.5179 TestF1m=0.5172 TestAUC=0.5143
+ Best per model (scheme selected on inner train split):
+   GBM: step_50pct_2x          InnerAcc=0.5740 InnerF1m=0.5730 TestAcc=0.5226
+   LGBM: step_50pct_3x          InnerAcc=0.5799 InnerF1m=0.5789 TestAcc=0.5214
+   XGB: exp_hl100              InnerAcc=0.5976 InnerF1m=0.5684 TestAcc=0.5179
 
  Best overall (selected on test):
-   GBM + step_50pct_2x: TestAcc=0.5226 TestF1m=0.4790 TestAUC=0.5550
+   GBM + step_50pct_2x: InnerAcc=0.5740 InnerF1m=0.5730
+   Test: Acc=0.5226 F1m=0.4790 AUC=0.5550
+
+ Uniform baseline on inner train split:
+   LGBM: InnerAcc=0.5799 Improvement=-0.59%
 
  Saved to ml/results/
 ==========================================================================================

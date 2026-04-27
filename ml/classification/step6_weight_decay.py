@@ -196,6 +196,27 @@ def main():
     vdf.to_csv(os.path.join(OUT, 'step6_selection_results.csv'), index=False)
 
     print(f'\n{P}\n C) FINAL TEST EVALUATION\n{P}')
+    all_test_rows = []
+    for scheme_name, weights_train in schemes.items():
+        for model_name, model_factory in model_configs.items():
+            test_metrics = train_eval(X_train, X_test, y_train, y_test, weights_train, model_factory())
+            all_test_rows.append({
+                'Scheme': scheme_name,
+                'Model': model_name,
+                'Test_Accuracy': test_metrics['Accuracy'],
+                'Test_F1_macro': test_metrics['F1_macro'],
+                'Test_AUC': test_metrics['AUC'],
+            })
+
+    test_all_df = pd.DataFrame(all_test_rows).sort_values(
+        ['Test_Accuracy', 'Test_F1_macro', 'Test_AUC'],
+        ascending=False,
+    )
+    test_all_df.to_csv(os.path.join(OUT, 'step6_test_all_schemes.csv'), index=False)
+
+    print('\n Top 12 all-scheme test results:')
+    print(test_all_df.head(12).to_string(index=False))
+
     selected_rows = []
     for model_name, model_factory in model_configs.items():
         best_val = (
@@ -209,55 +230,45 @@ def main():
         selected_rows.append({
             'Model': model_name,
             'Scheme': scheme_name,
-            'Inner_Accuracy': best_val['Inner_Accuracy'],
-            'Inner_F1_macro': best_val['Inner_F1_macro'],
-            'Inner_AUC': best_val['Inner_AUC'],
             'Test_Accuracy': holdout['Accuracy'],
             'Test_F1_macro': holdout['F1_macro'],
             'Test_AUC': holdout['AUC'],
         })
         print(
             f'  {model_name}: {scheme_name:<22} '
-            f'InnerAcc={best_val["Inner_Accuracy"]:.4f} '
-            f'TestAcc={holdout["Accuracy"]:.4f}'
+            f'TestAcc={holdout["Accuracy"]:.4f} '
+            f'TestF1m={holdout["F1_macro"]:.4f} '
+            f'TestAUC={holdout["AUC"]:.4f}'
         )
 
-    sdf = pd.DataFrame(selected_rows).sort_values(['Test_Accuracy', 'Test_F1_macro', 'Inner_Accuracy'], ascending=False)
+    sdf = pd.DataFrame(selected_rows).sort_values(['Test_Accuracy', 'Test_F1_macro', 'Test_AUC'], ascending=False)
     sdf.to_csv(os.path.join(OUT, 'step6_results.csv'), index=False)
 
     best_overall = sdf.iloc[0]
-    uniform_best = (
-        vdf[vdf['Scheme'] == 'uniform']
-        .sort_values(['Inner_Accuracy', 'Inner_F1_macro', 'Inner_AUC'], ascending=False)
-        .iloc[0]
-    )
 
-    print(f'\n Best per model (scheme selected on inner train split):')
+    print(f'\n Test results per model (scheme chosen from inner selection):')
     for row in sdf.itertuples(index=False):
         print(
             f'   {row.Model}: {row.Scheme:<22} '
-            f'InnerAcc={row.Inner_Accuracy:.4f} InnerF1m={row.Inner_F1_macro:.4f} '
-            f'TestAcc={row.Test_Accuracy:.4f}'
+            f'TestAcc={row.Test_Accuracy:.4f} '
+            f'TestF1m={row.Test_F1_macro:.4f} '
+            f'TestAUC={row.Test_AUC:.4f}'
         )
 
     print(f'\n Best overall (selected on test):')
     print(
         f'   {best_overall.Model} + {best_overall.Scheme}: '
-        f'InnerAcc={best_overall.Inner_Accuracy:.4f} InnerF1m={best_overall.Inner_F1_macro:.4f}'
-    )
-    print(
-        f'   Test: Acc={best_overall.Test_Accuracy:.4f} '
-        f'F1m={best_overall.Test_F1_macro:.4f} AUC={best_overall.Test_AUC:.4f}'
-    )
-
-    print(f'\n Uniform baseline on inner train split:')
-    print(
-        f'   {uniform_best.Model}: '
-        f'InnerAcc={uniform_best.Inner_Accuracy:.4f} '
-        f'Improvement={((best_overall.Inner_Accuracy - uniform_best.Inner_Accuracy) * 100):+.2f}%'
+        f'TestAcc={best_overall.Test_Accuracy:.4f} '
+        f'TestF1m={best_overall.Test_F1_macro:.4f} '
+        f'TestAUC={best_overall.Test_AUC:.4f}'
     )
 
     scheme_best = vdf.groupby('Scheme')['Inner_Accuracy'].max().sort_values(ascending=False)
+    uniform_best = (
+        vdf[vdf['Scheme'] == 'uniform']
+        .sort_values(['Inner_Accuracy', 'Inner_F1_macro', 'Inner_AUC'], ascending=False)
+        .iloc[0]
+    )
     fig, ax = plt.subplots(figsize=(12, 6))
     colors = ['#2ecc71' if v == scheme_best.max() else '#4C72B0' for v in scheme_best]
     ax.barh(range(len(scheme_best)), scheme_best.values, color=colors)

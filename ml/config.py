@@ -104,8 +104,8 @@ def load_data():
     }
 
 
-def get_tscv():
-    return TimeSeriesSplit(n_splits=N_SPLITS)
+def get_tscv(): 
+    return TimeSeriesSplit(n_splits=N_SPLITS) # default is 5 splits
 
 
 def set_global_seed(seed=RANDOM_STATE):

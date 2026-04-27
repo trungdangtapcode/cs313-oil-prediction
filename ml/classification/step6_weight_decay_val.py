@@ -24,7 +24,6 @@ Models trained in this file:
 
 Method used in this file:
   - Train the same model under multiple sample-weight schemes
-  - Normalize every scheme to mean weight = 1.0 for fair comparison
   - Pick the best scheme on validation for each model
   - Refit the chosen configuration on train+validation and evaluate once on holdout test
 
@@ -76,14 +75,6 @@ def step_weights(n, recent_ratio=0.5, recent_weight=2.0):
     cutoff = int(n * (1 - recent_ratio))
     w[cutoff:] = recent_weight
     return w
-
-
-def normalize_weights(weights, target_mean=1.0):
-    weights = np.asarray(weights, dtype=float)
-    mean_weight = weights.mean()
-    if not np.isfinite(mean_weight) or mean_weight <= 0:
-        raise ValueError(f'Cannot normalize weights with mean={mean_weight}')
-    return weights * (target_mean / mean_weight)
 
 
 def train_eval(X_train, X_eval, y_train, y_eval, weights, model):
@@ -141,7 +132,7 @@ def main():
     print(f'  Inner split for scheme selection: train={len(X_inner_train)} | eval={len(X_inner_eval)}')
 
     print(f'\n{P}\n A) WEIGHT SCHEMES\n{P}')
-    raw_scheme_builders = {
+    scheme_builders = {
         'uniform': lambda n: np.ones(n),
         'exp_hl100': lambda n: exponential_weights(n, half_life=100),
         'exp_hl250': lambda n: exponential_weights(n, half_life=250),
@@ -154,11 +145,6 @@ def main():
         'step_50pct_3x': lambda n: step_weights(n, recent_ratio=0.5, recent_weight=3.0),
         'step_30pct_3x': lambda n: step_weights(n, recent_ratio=0.3, recent_weight=3.0),
     }
-    scheme_builders = {
-        name: (lambda n, builder=builder: normalize_weights(builder(n)))
-        for name, builder in raw_scheme_builders.items()
-    }
-    raw_schemes = {name: builder(n_train) for name, builder in raw_scheme_builders.items()}
     schemes = {name: builder(n_train) for name, builder in scheme_builders.items()}
 
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -166,7 +152,7 @@ def main():
     for name, w in schemes.items():
         if name != 'uniform':
             ax.plot(dates, w, lw=1, label=f'{name} (min={w.min():.3f})', alpha=0.8)
-    ax.set_title('Weight Decay Schemes (Normalized to Mean = 1)')
+    ax.set_title('Weight Decay Schemes')
     ax.set_ylabel('Sample Weight')
     ax.legend(fontsize=6, loc='upper left')
     ax.grid(True, alpha=0.3)
@@ -175,12 +161,7 @@ def main():
     plt.close()
 
     for name, w in schemes.items():
-        raw_w = raw_schemes[name]
-        print(
-            f'  {name:<20} '
-            f'raw_mean={raw_w.mean():.4f} '
-            f'norm_min={w.min():.4f} norm_max={w.max():.4f} norm_mean={w.mean():.4f}'
-        )
+        print(f'  {name:<20} min={w.min():.4f} max={w.max():.4f} mean={w.mean():.4f}')
 
     print(f'\n{P}\n B) INNER TRAIN SELECTION GRID\n{P}')
     model_configs = {
@@ -215,27 +196,6 @@ def main():
     vdf.to_csv(os.path.join(OUT, 'step6_selection_results.csv'), index=False)
 
     print(f'\n{P}\n C) FINAL TEST EVALUATION\n{P}')
-    all_test_rows = []
-    for scheme_name, weights_train in schemes.items():
-        for model_name, model_factory in model_configs.items():
-            test_metrics = train_eval(X_train, X_test, y_train, y_test, weights_train, model_factory())
-            all_test_rows.append({
-                'Scheme': scheme_name,
-                'Model': model_name,
-                'Test_Accuracy': test_metrics['Accuracy'],
-                'Test_F1_macro': test_metrics['F1_macro'],
-                'Test_AUC': test_metrics['AUC'],
-            })
-
-    test_all_df = pd.DataFrame(all_test_rows).sort_values(
-        ['Test_Accuracy', 'Test_F1_macro', 'Test_AUC'],
-        ascending=False,
-    )
-    test_all_df.to_csv(os.path.join(OUT, 'step6_test_all_schemes.csv'), index=False)
-
-    print('\n Top 12 all-scheme test results:')
-    print(test_all_df.head(12).to_string(index=False))
-
     selected_rows = []
     for model_name, model_factory in model_configs.items():
         best_val = (
@@ -249,45 +209,55 @@ def main():
         selected_rows.append({
             'Model': model_name,
             'Scheme': scheme_name,
+            'Inner_Accuracy': best_val['Inner_Accuracy'],
+            'Inner_F1_macro': best_val['Inner_F1_macro'],
+            'Inner_AUC': best_val['Inner_AUC'],
             'Test_Accuracy': holdout['Accuracy'],
             'Test_F1_macro': holdout['F1_macro'],
             'Test_AUC': holdout['AUC'],
         })
         print(
             f'  {model_name}: {scheme_name:<22} '
-            f'TestAcc={holdout["Accuracy"]:.4f} '
-            f'TestF1m={holdout["F1_macro"]:.4f} '
-            f'TestAUC={holdout["AUC"]:.4f}'
+            f'InnerAcc={best_val["Inner_Accuracy"]:.4f} '
+            f'TestAcc={holdout["Accuracy"]:.4f}'
         )
 
-    sdf = pd.DataFrame(selected_rows).sort_values(['Test_Accuracy', 'Test_F1_macro', 'Test_AUC'], ascending=False)
+    sdf = pd.DataFrame(selected_rows).sort_values(['Test_Accuracy', 'Test_F1_macro', 'Inner_Accuracy'], ascending=False)
     sdf.to_csv(os.path.join(OUT, 'step6_results.csv'), index=False)
 
     best_overall = sdf.iloc[0]
-
-    print(f'\n Test results per model (scheme chosen from inner selection):')
-    for row in sdf.itertuples(index=False):
-        print(
-            f'   {row.Model}: {row.Scheme:<22} '
-            f'TestAcc={row.Test_Accuracy:.4f} '
-            f'TestF1m={row.Test_F1_macro:.4f} '
-            f'TestAUC={row.Test_AUC:.4f}'
-        )
-
-    print(f'\n Best overall (selected on test):')
-    print(
-        f'   {best_overall.Model} + {best_overall.Scheme}: '
-        f'TestAcc={best_overall.Test_Accuracy:.4f} '
-        f'TestF1m={best_overall.Test_F1_macro:.4f} '
-        f'TestAUC={best_overall.Test_AUC:.4f}'
-    )
-
-    scheme_best = vdf.groupby('Scheme')['Inner_Accuracy'].max().sort_values(ascending=False)
     uniform_best = (
         vdf[vdf['Scheme'] == 'uniform']
         .sort_values(['Inner_Accuracy', 'Inner_F1_macro', 'Inner_AUC'], ascending=False)
         .iloc[0]
     )
+
+    print(f'\n Best per model (scheme selected on inner train split):')
+    for row in sdf.itertuples(index=False):
+        print(
+            f'   {row.Model}: {row.Scheme:<22} '
+            f'InnerAcc={row.Inner_Accuracy:.4f} InnerF1m={row.Inner_F1_macro:.4f} '
+            f'TestAcc={row.Test_Accuracy:.4f}'
+        )
+
+    print(f'\n Best overall (selected on test):')
+    print(
+        f'   {best_overall.Model} + {best_overall.Scheme}: '
+        f'InnerAcc={best_overall.Inner_Accuracy:.4f} InnerF1m={best_overall.Inner_F1_macro:.4f}'
+    )
+    print(
+        f'   Test: Acc={best_overall.Test_Accuracy:.4f} '
+        f'F1m={best_overall.Test_F1_macro:.4f} AUC={best_overall.Test_AUC:.4f}'
+    )
+
+    print(f'\n Uniform baseline on inner train split:')
+    print(
+        f'   {uniform_best.Model}: '
+        f'InnerAcc={uniform_best.Inner_Accuracy:.4f} '
+        f'Improvement={((best_overall.Inner_Accuracy - uniform_best.Inner_Accuracy) * 100):+.2f}%'
+    )
+
+    scheme_best = vdf.groupby('Scheme')['Inner_Accuracy'].max().sort_values(ascending=False)
     fig, ax = plt.subplots(figsize=(12, 6))
     colors = ['#2ecc71' if v == scheme_best.max() else '#4C72B0' for v in scheme_best]
     ax.barh(range(len(scheme_best)), scheme_best.values, color=colors)

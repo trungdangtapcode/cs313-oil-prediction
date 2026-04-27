@@ -305,9 +305,12 @@ def main():
         print(f'  CV={gs.best_score_:.4f} | Test Acc={metrics["Accuracy"]:.4f} F1m={metrics["F1m"]:.4f} AUC={metrics["AUC"]:.4f}')
 
     base = [
-        ('lgbm', LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS, n_estimators=100, max_depth=3, learning_rate=0.05)),
-        ('xgb', XGBClassifier(random_state=RS, verbosity=0, n_jobs=MODEL_N_JOBS, eval_metric='logloss', n_estimators=100, max_depth=3, learning_rate=0.05)),
-        ('gbm', GradientBoostingClassifier(random_state=RS, n_estimators=100, max_depth=3, learning_rate=0.05)),
+        ('lgbm', LGBMClassifier(random_state=RS, verbosity=-1, n_jobs=MODEL_N_JOBS, 
+                                n_estimators=100, max_depth=3, learning_rate=0.05)),
+        ('xgb', XGBClassifier(random_state=RS, verbosity=0, n_jobs=MODEL_N_JOBS, 
+                              eval_metric='logloss', n_estimators=100, max_depth=3, learning_rate=0.05)),
+        ('gbm', GradientBoostingClassifier(random_state=RS, n_estimators=100, 
+                                           max_depth=3, learning_rate=0.05)),
     ]
     ensembles = [
         ('Voting', VotingClassifier(estimators=base, voting='soft', n_jobs=SEARCH_N_JOBS), False),
@@ -317,6 +320,8 @@ def main():
             cv=tscv,
         ), False),
     ]
+    
+    
     for name, estimator, use_sc in ensembles:
         print(f'\n--- {name} ---')
         t0 = time.time()
