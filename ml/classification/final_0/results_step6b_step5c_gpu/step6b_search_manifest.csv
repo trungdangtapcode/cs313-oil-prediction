@@ -1,0 +1,6 @@
+Grid,Combinations
+gbtree_depthwise_core,8748
+gbtree_regularized_cuda,2304
+gbtree_lossguide_cuda,10368
+dart_depthwise_cuda,10368
+TOTAL,31788

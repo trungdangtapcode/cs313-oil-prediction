@@ -1,0 +1,162 @@
+
+==========================================================================================
+ STEP 5: SMART FEATURE SELECTION
+==========================================================================================
+  Seed: 42
+  Parallelism: search_jobs=8 | model_jobs=12
+  Permutation repeats: 5
+  Final randomized-search iterations: 15
+  Extra top-N sets: [10, 15, 20, 25]
+  Features: 27 | Train: 2082 | Test: 840
+
+==========================================================================================
+ A) CORRELATION CLUSTERING
+==========================================================================================
+
+ Threshold      N_clusters   Max_size   Singletons
+ --------------------------------------------------
+ 0.1                    27          1           27
+ 0.2                    25          2           23
+ 0.3                    20          3           14
+ 0.4                    20          3           14
+ 0.5                    19          5           14
+
+ Choose threshold = 0.3 -> 20 clusters
+
+ Clusters with more than 1 feature (multicollinearity):
+   Cluster 1 (2 features, max|rho|=0.780):
+     - sp500_return
+     - vix_return_slog1p
+   Cluster 6 (2 features, max|rho|=0.748):
+     - gdelt_goldstein
+     - gdelt_goldstein_7d
+   Cluster 7 (3 features, max|rho|=0.849):
+     - gdelt_tone_7d
+     - gdelt_tone_30d
+     - gdelt_tone_lag1
+   Cluster 8 (2 features, max|rho|=0.788):
+     - fatalities_log1p
+     - fatalities_7d_log1p
+   Cluster 9 (2 features, max|rho|=0.889):
+     - gdelt_events_log1p
+     - gdelt_volume_lag1_log1p
+   Cluster 13 (2 features, max|rho|=0.755):
+     - conflict_event_count_log1p
+     - conflict_intensity_7d_log1p
+
+==========================================================================================
+ B) PERMUTATION IMPORTANCE
+==========================================================================================
+  Computing permutation importance (5 repeats)...
+  Done (1.7s)
+
+ Top 20 Permutation Importance:
+ #    Feature                         Perm_mean   Perm_std
+ ----------------------------------------------------------
+ 1    oil_return                        0.02075    0.01294
+ 2    oil_return_lag1                   0.01095    0.01228
+ 3    oil_return_lag2                   0.00922    0.02073
+ 4    gdelt_volume_lag1_log1p           0.00634    0.00615
+ 5    fatalities_log1p                  0.00519    0.00971
+ 6    month_sin                         0.00346    0.00282
+ 7    sp500_return                      0.00231    0.00782
+ 8    gdelt_goldstein_7d                0.00231    0.00667
+ 9    net_imports_change_pct_slog1p     0.00173    0.00696
+ 10   gdelt_tone_lag1                   0.00115    0.00647
+ 11   inventory_change_pct             -0.00115    0.00765
+ 12   gdelt_tone_30d                   -0.00115    0.00346
+ 13   inventory_zscore                 -0.00115    0.00431
+ 14   day_of_week_sin                  -0.00173    0.00672
+ 15   conflict_intensity_7d_log1p      -0.00173    0.00502
+ 16   vix_return_slog1p                -0.00346    0.01201
+ 17   vix_lag1_log1p                   -0.00403    0.00565
+ 18   gdelt_events_log1p               -0.00461    0.00468
+ 19   day_of_week_cos                  -0.00749    0.00294
+ 20   production_change_pct_slog1p     -0.00749    0.01190
+
+==========================================================================================
+ C) COMBINE: BEST FEATURE PER CLUSTER
+==========================================================================================
+
+  Cluster Selected                           Perm Dropped                                           
+ ----------------------------------------------------------------------------------------------------
+        1 sp500_return                    0.00231 vix_return_slog1p                                 
+        2 oil_return                      0.02075 -                                                 
+        3 usd_return                     -0.01787 -                                                 
+        4 day_of_week_sin                -0.00173 -                                                 
+        5 day_of_week_cos                -0.00749 -                                                 
+        6 gdelt_goldstein_7d              0.00231 gdelt_goldstein                                   
+        7 gdelt_tone_lag1                 0.00115 gdelt_tone_30d, gdelt_tone_7d                     
+        8 fatalities_log1p                0.00519 fatalities_7d_log1p                               
+        9 gdelt_volume_lag1_log1p         0.00634 gdelt_events_log1p                                
+       10 vix_lag1_log1p                 -0.00403 -                                                 
+       11 inventory_change_pct           -0.00115 -                                                 
+       12 inventory_zscore               -0.00115 -                                                 
+       13 conflict_intensity_7d_log1p    -0.00173 conflict_event_count_log1p                        
+       14 yield_spread                   -0.00922 -                                                 
+       15 net_imports_change_pct_slog1p   0.00173 -                                                 
+       16 month_cos                      -0.01037 -                                                 
+       17 production_change_pct_slog1p   -0.00749 -                                                 
+       18 month_sin                       0.00346 -                                                 
+       19 oil_return_lag1                 0.01095 -                                                 
+       20 oil_return_lag2                 0.00922 -                                                 
+
+ Selected: 20 features (from 27 -> minus 7)
+ After dropping perm <= 0: 10 features
+
+==========================================================================================
+ D) COMPARE FEATURE SETS
+==========================================================================================
+
+ Set                          N    LGBM_CV     XGB_CV     GBM_CV
+ ----------------------------------------------------------------
+ ALL_27                      27     0.5447     0.5435     0.5337
+ CLUSTER_20                  20     0.5389     0.5280     0.5222
+ CLUSTER_POS_10              10     0.5205     0.5343     0.5256
+ PERM_TOP_10                 10     0.5233     0.5331     0.5170
+ PERM_TOP_15                 15     0.5245     0.5274     0.5130
+ PERM_TOP_20                 20     0.5349     0.5291     0.5280
+ PERM_TOP_25                 25     0.5354     0.5378     0.5274
+
+==========================================================================================
+ E) FINAL TRAIN ON ALL_27 (27 features)
+==========================================================================================
+
+--- XGB ---
+  Best: {'reg_alpha': 0, 'n_estimators': 300, 'max_depth': 5, 'learning_rate': 0.03}
+  Acc=0.5262 F1m=0.4959 AUC=0.5489 (CV=0.5487, 13.9s)
+
+--- GBM ---
+  Best: {'n_estimators': 500, 'min_samples_leaf': 5, 'max_depth': 7, 'learning_rate': 0.01}
+  Acc=0.5107 F1m=0.4852 AUC=0.5486 (CV=0.5481, 88.0s)
+
+--- LGBM ---
+  Best: {'num_leaves': 31, 'n_estimators': 500, 'max_depth': 5, 'learning_rate': 0.05}
+  Acc=0.5202 F1m=0.4832 AUC=0.5477 (CV=0.5493, 3.9s)
+
+==========================================================================================
+ SUMMARY
+==========================================================================================
+Model  Accuracy  F1_binary  F1_macro      AUC  Precision_UP  Recall_UP  TP  FP  TN  FN   CV_Acc  Time_s
+  XGB  0.526190   0.372240  0.495871 0.548941      0.546296   0.282297 118  98 324 300 0.548703    13.9
+  GBM  0.510714   0.370597  0.485201 0.548556      0.514894   0.289474 121 114 308 297 0.548127    88.0
+ LGBM  0.520238   0.344715  0.483156 0.547728      0.538071   0.253589 106  91 331 312 0.549280     3.9
+
+ Pipeline:
+   81 features
+   -> Correlation clustering (threshold=0.3, |rho|>0.7 grouped)
+   -> 20 clusters
+   -> Permutation importance keeps 1 best feature per cluster
+   -> ALL_27: 27 features
+   -> XGB: Acc=0.5262
+   -> Test: Acc=0.5262 F1m=0.4959 AUC=0.5489
+
+ Comparison:
+   Baseline (42 features, no technicals):   Acc=0.5274
+   Step4 (81 features, no selection):        Acc=0.5530
+   Step5 (naive MI+Spearman selection):      Acc=0.5619
+   Step5 (cluster+perm selection, test):      Acc=0.5262
+
+==========================================================================================
+ DONE
+==========================================================================================

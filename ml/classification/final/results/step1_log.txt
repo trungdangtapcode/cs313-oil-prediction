@@ -1,0 +1,144 @@
+
+==========================================================================================
+ CLASSIFICATION - Oil Price Direction (UP/DOWN)
+==========================================================================================
+  Seed: 42
+  Parallelism: search_jobs=8
+  Features: 27
+  Train: 2082 | Test: 840
+  Model-time preprocessing schema: step5c_baked_scaled_passthrough
+  Input is baked-scaled step5c dataset -> skip model-time scaler
+  Train targets: 2015-01-08 -> 2022-12-30
+  Test targets:  2023-01-02 -> 2026-03-20
+
+  Target distribution (Train): UP=1069 (51.3%) | DOWN=1013 (48.7%)
+  Target distribution (Test):  UP=418 (49.8%) | DOWN=422 (50.2%)
+
+--- LogisticRegression ---
+  Best params: {'C': 1.0, 'penalty': 'l1', 'solver': 'saga'}
+  CV Accuracy: 0.5435
+  Test Accuracy:   0.5202
+  Test F1 (binary): 0.4746
+  Test F1 (macro):  0.5166
+  Test AUC:         0.5253
+  Test Confusion:   TP=182 FP=167 TN=255 FN=236
+  Time:            1.9s
+
+--- SVM_RBF ---
+  Best params: {'C': 1.0, 'gamma': 'auto', 'kernel': 'rbf'}
+  CV Accuracy: 0.5487
+  Test Accuracy:   0.5083
+  Test F1 (binary): 0.3971
+  Test F1 (macro):  0.4910
+  Test AUC:         0.5129
+  Test Confusion:   TP=136 FP=131 TN=291 FN=282
+  Time:            1.1s
+
+--- SVM_Linear ---
+  Best params: {'C': 0.01}
+  CV Accuracy: 0.5389
+  Test Accuracy:   0.5131
+  Test F1 (binary): 0.5336
+  Test F1 (macro):  0.5121
+  Test AUC:         0.5236
+  Test Confusion:   TP=234 FP=225 TN=197 FN=184
+  Time:            2.0s
+
+--- RandomForest ---
+  Best params: {'max_depth': 5, 'min_samples_leaf': 3, 'n_estimators': 300}
+  CV Accuracy: 0.5470
+  Test Accuracy:   0.5119
+  Test F1 (binary): 0.3673
+  Test F1 (macro):  0.4850
+  Test AUC:         0.5360
+  Test Confusion:   TP=119 FP=111 TN=311 FN=299
+  Time:            13.5s
+
+--- GradientBoosting ---
+  Best params: {'learning_rate': 0.01, 'max_depth': 5, 'n_estimators': 300}
+  CV Accuracy: 0.5429
+  Test Accuracy:   0.5179
+  Test F1 (binary): 0.3582
+  Test F1 (macro):  0.4860
+  Test AUC:         0.5353
+  Test Confusion:   TP=113 FP=100 TN=322 FN=305
+  Time:            57.0s
+
+--- XGBoost ---
+  Best params: {'learning_rate': 0.1, 'max_depth': 5, 'n_estimators': 100, 'reg_alpha': 0}
+  CV Accuracy: 0.5504
+  Test Accuracy:   0.5083
+  Test F1 (binary): 0.3496
+  Test F1 (macro):  0.4772
+  Test AUC:         0.5458
+  Test Confusion:   TP=111 FP=106 TN=316 FN=307
+  Time:            19.6s
+
+--- LightGBM ---
+  Best params: {'learning_rate': 0.1, 'max_depth': 5, 'n_estimators': 300, 'num_leaves': 15}
+  CV Accuracy: 0.5458
+  Test Accuracy:   0.5405
+  Test F1 (binary): 0.3774
+  Test F1 (macro):  0.5066
+  Test AUC:         0.5603
+  Test Confusion:   TP=117 FP=85 TN=337 FN=301
+  Time:            4.4s
+
+--- MLP ---
+  Best params: {'alpha': 0.001, 'hidden_layer_sizes': (128, 64, 32), 'learning_rate_init': 0.01}
+  CV Accuracy: 0.5412
+  Test Accuracy:   0.5107
+  Test F1 (binary): 0.4347
+  Test F1 (macro):  0.5017
+  Test AUC:         0.5208
+  Test Confusion:   TP=158 FP=151 TN=271 FN=260
+  Time:            31.1s
+
+==========================================================================================
+ TEST LEADERBOARD (sorted by F1_macro)
+==========================================================================================
+                Model  Accuracy  F1_binary  F1_macro    AUC  Precision_UP  Recall_UP   TP   FP   TN   FN  CV_Acc  Time_s
+1  LogisticRegression    0.5202     0.4746    0.5166 0.5253        0.5215     0.4354  182  167  255  236  0.5435  1.9000
+2          SVM_Linear    0.5131     0.5336    0.5121 0.5236        0.5098     0.5598  234  225  197  184  0.5389  2.0000
+3            LightGBM    0.5405     0.3774    0.5066 0.5603        0.5792     0.2799  117   85  337  301  0.5458  4.4000
+4                 MLP    0.5107     0.4347    0.5017 0.5208        0.5113     0.3780  158  151  271  260  0.5412 31.1000
+5             SVM_RBF    0.5083     0.3971    0.4910 0.5129        0.5094     0.3254  136  131  291  282  0.5487  1.1000
+6    GradientBoosting    0.5179     0.3582    0.4860 0.5353        0.5305     0.2703  113  100  322  305  0.5429 57.0000
+7        RandomForest    0.5119     0.3673    0.4850 0.5360        0.5174     0.2847  119  111  311  299  0.5470 13.5000
+8             XGBoost    0.5083     0.3496    0.4772 0.5458        0.5115     0.2656  111  106  316  307  0.5504 19.6000
+
+==========================================================================================
+ CLASSIFICATION REPORT - LogisticRegression (test)
+==========================================================================================
+              precision    recall  f1-score   support
+
+        DOWN       0.52      0.60      0.56       422
+          UP       0.52      0.44      0.47       418
+
+    accuracy                           0.52       840
+   macro avg       0.52      0.52      0.52       840
+weighted avg       0.52      0.52      0.52       840
+
+ Test: Acc=0.5202 F1m=0.5166 AUC=0.5253
+
+==========================================================================================
+ BACKTEST (Long if UP, flat if DOWN)
+==========================================================================================
+ Model                   Total%   Sharpe    MaxDD%    Acc%
+ --------------------------------------------------------
+ Buy&Hold                 26.47                           
+ LogisticRegression       47.96     0.73    -18.28   52.0%
+
+ Saved model bundle: ml/classification/final/results/step1_selected_bundle.joblib
+ Results saved to ml/classification/final/results
+==========================================================================================
+ DONE
+==========================================================================================
+/opt/miniconda3/envs/ldm/lib/python3.8/site-packages/sklearn/neural_network/_multilayer_perceptron.py:691: ConvergenceWarning: Stochastic Optimizer: Maximum iterations (500) reached and the optimization hasn't converged yet.
+  warnings.warn(
+/opt/miniconda3/envs/ldm/lib/python3.8/site-packages/sklearn/neural_network/_multilayer_perceptron.py:691: ConvergenceWarning: Stochastic Optimizer: Maximum iterations (500) reached and the optimization hasn't converged yet.
+  warnings.warn(
+/opt/miniconda3/envs/ldm/lib/python3.8/site-packages/sklearn/neural_network/_multilayer_perceptron.py:691: ConvergenceWarning: Stochastic Optimizer: Maximum iterations (500) reached and the optimization hasn't converged yet.
+  warnings.warn(
+/opt/miniconda3/envs/ldm/lib/python3.8/site-packages/sklearn/neural_network/_multilayer_perceptron.py:691: ConvergenceWarning: Stochastic Optimizer: Maximum iterations (500) reached and the optimization hasn't converged yet.
+  warnings.warn(

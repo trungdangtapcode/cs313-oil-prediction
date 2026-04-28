@@ -1,0 +1,236 @@
+nohup: ignoring input
+
+==========================================================================================
+ STEP 5: SMART FEATURE SELECTION
+==========================================================================================
+  Seed: 42
+  Parallelism: search_jobs=8 | model_jobs=12
+  Permutation repeats: 5
+  Final randomized-search iterations: 15
+  Extra top-N sets: [10, 15, 20, 25]
+  Features: 82 | Train: 2032 | Test: 840
+
+==========================================================================================
+ A) CORRELATION CLUSTERING
+==========================================================================================
+
+ Threshold      N_clusters   Max_size   Singletons
+ --------------------------------------------------
+ 0.1                    63          7           52
+ 0.2                    52          8           39
+ 0.3                    41          9           26
+ 0.4                    35         10           22
+ 0.5                    30         10           18
+
+ Choose threshold = 0.3 -> 41 clusters
+
+ Clusters with more than 1 feature (multicollinearity):
+   Cluster 4 (2 features, max|rho|=1.000):
+     - momentum_5
+     - ret_mean_5
+   Cluster 5 (6 features, max|rho|=0.942):
+     - price_vs_ma20
+     - rsi_14
+     - macd_hist
+     - macd_cross
+     - bb_position
+     - momentum_10
+   Cluster 7 (5 features, max|rho|=0.996):
+     - price_vs_ma50
+     - macd
+     - macd_signal
+     - momentum_20
+     - ret_mean_20
+   Cluster 14 (2 features, max|rho|=0.737):
+     - conflict_event_count
+     - conflict_intensity_7d
+   Cluster 18 (2 features, max|rho|=0.893):
+     - oil_volatility_7d
+     - ret_std_5
+   Cluster 21 (2 features, max|rho|=0.975):
+     - vix_close
+     - vix_lag1
+   Cluster 22 (2 features, max|rho|=0.773):
+     - fatalities
+     - fatalities_7d
+   Cluster 23 (5 features, max|rho|=1.000):
+     - gdelt_tone
+     - gdelt_tone_7d
+     - stress_tone
+     - geopolitical_stress_index
+     - gdelt_tone_lag1
+   Cluster 24 (3 features, max|rho|=1.000):
+     - gdelt_goldstein
+     - gdelt_goldstein_7d
+     - stress_goldstein
+   Cluster 26 (3 features, max|rho|=0.841):
+     - fed_funds_rate_lag
+     - unemployment_lag
+     - fed_rate_regime
+   Cluster 27 (2 features, max|rho|=0.724):
+     - yield_spread
+     - crude_production_weekly
+   Cluster 28 (9 features, max|rho|=0.997):
+     - wti_fred
+     - crude_inventory_weekly
+     - cpi_yoy
+     - ma_5
+     - ma_10
+     - ma_20
+     - ma_50
+     - bb_upper
+     - bb_lower
+   Cluster 30 (9 features, max|rho|=1.000):
+     - sp500_close
+     - cpi_lag
+     - net_imports_weekly
+     - gdelt_volume
+     - gdelt_events
+     - gdelt_volume_7d
+     - gdelt_volume_log
+     - stress_volume
+     - gdelt_volume_lag1
+   Cluster 35 (2 features, max|rho|=0.776):
+     - sp500_return_lag1
+     - vix_return_lag1
+   Cluster 37 (2 features, max|rho|=0.776):
+     - sp500_return
+     - vix_return
+
+==========================================================================================
+ B) PERMUTATION IMPORTANCE
+==========================================================================================
+  Computing permutation importance (5 repeats)...
+  Done (2.5s)
+
+ Top 20 Permutation Importance:
+ #    Feature                         Perm_mean   Perm_std
+ ----------------------------------------------------------
+ 1    fatalities_7d                     0.01420    0.00473
+ 2    ret_mean_20                       0.01124    0.00221
+ 3    sp500_return_lag1                 0.01065    0.00401
+ 4    bb_upper                          0.01006    0.00145
+ 5    conflict_intensity_7d             0.00828    0.00221
+ 6    oil_return                        0.00769    0.01357
+ 7    ma_20                             0.00710    0.00145
+ 8    gdelt_volume_lag1                 0.00651    0.00781
+ 9    wti_fred                          0.00651    0.00118
+ 10   yield_spread                      0.00533    0.00435
+ 11   usd_return                        0.00473    0.00637
+ 12   sp500_return                      0.00473    0.00870
+ 13   usd_close                         0.00473    0.00237
+ 14   net_imports_weekly                0.00473    0.00401
+ 15   macd_signal                       0.00473    0.00302
+ 16   gdelt_tone_30d                    0.00414    0.00302
+ 17   conflict_event_count              0.00414    0.00302
+ 18   fatalities                        0.00414    0.00965
+ 19   ret_mean_5                        0.00414    0.00355
+ 20   ma_50                             0.00296    0.00000
+
+==========================================================================================
+ C) COMBINE: BEST FEATURE PER CLUSTER
+==========================================================================================
+
+  Cluster Selected                           Perm Dropped                                           
+ ----------------------------------------------------------------------------------------------------
+        1 gdelt_tone_spike                0.00000 -                                                 
+        2 media_attention_spike           0.00000 -                                                 
+        3 gdelt_vol_momentum              0.00059 -                                                 
+        4 ret_mean_5                      0.00414 momentum_5                                        
+        5 rsi_14                          0.00059 macd_cross, price_vs_ma20, macd_hist, momentum_10, bb_position
+        6 ma_5_10_cross                  -0.00355 -                                                 
+        7 ret_mean_20                     0.01124 macd_signal, momentum_20, macd, price_vs_ma50     
+        8 ma_10_20_cross                  0.00000 -                                                 
+        9 ma_20_50_cross                  0.00000 -                                                 
+       10 oil_return_lag5                -0.00888 -                                                 
+       11 oil_return_lag3                 0.00059 -                                                 
+       12 oil_return_lag2                 0.00059 -                                                 
+       13 month                          -0.00178 -                                                 
+       14 conflict_intensity_7d           0.00828 conflict_event_count                              
+       15 day_of_week                    -0.00059 -                                                 
+       16 usd_close                       0.00473 -                                                 
+       17 recession_signal                0.00000 -                                                 
+       18 oil_volatility_7d              -0.00059 ret_std_5                                         
+       19 ret_std_20                     -0.01243 -                                                 
+       20 bb_width                       -0.00178 -                                                 
+       21 vix_close                       0.00178 vix_lag1                                          
+       22 fatalities_7d                   0.01420 fatalities                                        
+       23 gdelt_tone_7d                  -0.00118 stress_tone, geopolitical_stress_index, gdelt_tone_lag1, gdelt_tone
+       24 gdelt_goldstein_7d             -0.00059 stress_goldstein, gdelt_goldstein                 
+       25 gdelt_tone_30d                  0.00414 -                                                 
+       26 unemployment_lag                0.00237 fed_funds_rate_lag, fed_rate_regime               
+       27 yield_spread                    0.00533 crude_production_weekly                           
+       28 bb_upper                        0.01006 ma_20, wti_fred, ma_50, ma_5, crude_inventory_weekly, cpi_yoy, ma_10, bb_lower
+       29 inventory_zscore                0.00237 -                                                 
+       30 gdelt_volume_lag1               0.00651 net_imports_weekly, sp500_close, cpi_lag, gdelt_volume, gdelt_volume_log, stress_volume, gdelt_volume_7d, gdelt_events
+       31 real_rate                       0.00000 -                                                 
+       32 inventory_change_pct           -0.00355 -                                                 
+       33 production_change_pct          -0.00296 -                                                 
+       34 net_imports_change_pct          0.00296 -                                                 
+       35 sp500_return_lag1               0.01065 vix_return_lag1                                   
+       36 oil_return_lag1                 0.00237 -                                                 
+       37 sp500_return                    0.00473 vix_return                                        
+       38 oil_return                      0.00769 -                                                 
+       39 usd_return                      0.00473 -                                                 
+       40 gdelt_data_imputed              0.00000 -                                                 
+       41 fed_rate_change                 0.00000 -                                                 
+
+ Selected: 41 features (from 82 -> minus 41)
+ After dropping perm <= 0: 22 features
+
+==========================================================================================
+ D) COMPARE FEATURE SETS
+==========================================================================================
+
+ Set                          N    LGBM_CV     XGB_CV     GBM_CV
+ ----------------------------------------------------------------
+ ALL_82                      82     0.5272     0.5296     0.5284
+ CLUSTER_41                  41     0.5178     0.5160     0.5065
+ CLUSTER_POS_22              22     0.5083     0.5154     0.5243
+ PERM_TOP_10                 10     0.5071     0.5290     0.5130
+ PERM_TOP_15                 15     0.4970     0.5314     0.5112
+ PERM_TOP_20                 20     0.5077     0.5160     0.5172
+ PERM_TOP_25                 25     0.5207     0.5107     0.5107
+
+==========================================================================================
+ E) FINAL TRAIN ON PERM_TOP_15 (15 features)
+==========================================================================================
+
+--- XGB ---
+  Best: {'reg_alpha': 0.1, 'n_estimators': 300, 'max_depth': 3, 'learning_rate': 0.03}
+  Acc=0.5083 F1m=0.5044 AUC=0.5057 (CV=0.5272, 8.1s)
+
+--- GBM ---
+  Best: {'n_estimators': 300, 'min_samples_leaf': 5, 'max_depth': 5, 'learning_rate': 0.03}
+  Acc=0.4893 F1m=0.4891 AUC=0.4898 (CV=0.5231, 59.4s)
+
+--- LGBM ---
+  Best: {'num_leaves': 15, 'n_estimators': 300, 'max_depth': 5, 'learning_rate': 0.01}
+  Acc=0.4869 F1m=0.4832 AUC=0.4875 (CV=0.5166, 2.0s)
+
+==========================================================================================
+ SUMMARY
+==========================================================================================
+Model  Accuracy  F1_binary  F1_macro      AUC  Precision_UP  Recall_UP  TP  FP  TN  FN   CV_Acc  Time_s
+  XGB  0.508333   0.460131  0.504382 0.505731      0.507205   0.421053 176 171 251 242 0.527219     8.1
+  GBM  0.489286   0.499417  0.489076 0.489847      0.487472   0.511962 214 225 197 204 0.523077    59.4
+ LGBM  0.486905   0.526894  0.483213 0.487534      0.486815   0.574163 240 253 169 178 0.516568     2.0
+
+ Pipeline:
+   81 features
+   -> Correlation clustering (threshold=0.3, |rho|>0.7 grouped)
+   -> 41 clusters
+   -> Permutation importance keeps 1 best feature per cluster
+   -> PERM_TOP_15: 15 features
+   -> XGB: Acc=0.5083
+   -> Test: Acc=0.5083 F1m=0.5044 AUC=0.5057
+
+ Comparison:
+   Baseline (42 features, no technicals):   Acc=0.5274
+   Step4 (81 features, no selection):        Acc=0.5530
+   Step5 (naive MI+Spearman selection):      Acc=0.5619
+   Step5 (cluster+perm selection, test):      Acc=0.5083
+
+==========================================================================================
+ DONE
+==========================================================================================

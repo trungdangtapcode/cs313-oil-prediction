@@ -53,7 +53,8 @@ from sklearn.model_selection import RandomizedSearchCV, cross_val_score
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import DATA_PATH, DROP_COLS, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
+from config import DATA_PATH, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
+from step3_technical_improve import add_technical_features
 
 from metrics import evaluate, get_scores, METRIC_COLS, SORT_COLS
 
@@ -64,7 +65,7 @@ CPU_COUNT = os.cpu_count() or 1
 SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
 MODEL_N_JOBS = max(1, int(os.getenv('MODEL_N_JOBS', str(min(12, max(1, CPU_COUNT // 4))))))
 SUBSET_SIZES = [
-    int(x.strip()) for x in os.getenv('STEP4_SUBSET_SIZES', '5,8,10,12,15,18,20,22,25').split(',') if x.strip()
+    int(x.strip()) for x in os.getenv('STEP4_SUBSET_SIZES', '10,15,20,25,30,40,50,60,70').split(',') if x.strip()
 ]
 STEP4_N_ITER = max(1, int(os.getenv('STEP4_N_ITER', '15')))
 
@@ -123,16 +124,18 @@ def build_subset_cases(features, scheme_orders):
 
 def main():
     seed = set_global_seed()
-    print(f'\n{P}\n STEP 3: FEATURE SELECTION + RETRAIN\n{P}')
+    print(f'\n{P}\n STEP 4: FEATURE SELECTION + RETRAIN (81 features)\n{P}')
     print(f'  Seed: {seed}')
     print(f'  Parallelism: search_jobs={SEARCH_N_JOBS} | model_jobs={MODEL_N_JOBS}')
     print(f'  Final randomized-search iterations: {STEP4_N_ITER}')
     print(f'  Subset sizes: {SUBSET_SIZES}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
+    df = add_technical_features(df)
 
     y_col = TARGET
-    features = [c for c in df.columns if c not in DROP_COLS and c != y_col]
+    exclude = {'date', y_col, TARGET_DATE_COL, 'oil_close'}
+    features = [c for c in df.columns if c not in exclude]
 
     train_mask, test_mask, _ = get_train_test_masks(df)
 

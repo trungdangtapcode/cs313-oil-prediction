@@ -1,0 +1,5 @@
+Grid,Combinations,Status,Best_CV_Acc,SearchTime_s
+gbtree_depthwise_core,8748,running,,
+gbtree_regularized_cuda,2304,pending,,
+gbtree_lossguide_cuda,10368,pending,,
+dart_depthwise_cuda,10368,pending,,

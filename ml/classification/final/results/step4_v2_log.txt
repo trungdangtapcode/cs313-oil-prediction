@@ -1,0 +1,16 @@
+
+==========================================================================================
+ STEP 4: PERMUTATION IMPORTANCE FEATURE SELECTION
+==========================================================================================
+  Seed: 42
+  Parallelism: search_jobs=8 | model_jobs=12
+  Permutation repeats: 10
+  Top-N sets: [5, 10, 15, 20, 25]
+  Features: 27 | Train: 2082 | Test: 840
+
+==========================================================================================
+ A) PERMUTATION IMPORTANCE
+==========================================================================================
+  Inner split: train=1735 | eval=347
+  Proxy model accuracy on inner eval: 0.5533
+  Computing permutation importance (10 repeats)...

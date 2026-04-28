@@ -11,9 +11,12 @@ from sklearn.model_selection import TimeSeriesSplit
 ROOT = os.path.join(os.path.dirname(__file__), '..')
 DATA_PATH = os.getenv(
     'CLASSIFICATION_DATA_PATH',
+    os.path.join(ROOT, 'data', 'processed', 'dataset_final_noleak_step5c_scaler.csv'),
+)
+PRICE_SOURCE_PATH = os.getenv(
+    'CLASSIFICATION_PRICE_SOURCE_PATH',
     os.path.join(ROOT, 'data', 'processed', 'dataset_step4_transformed.csv'),
 )
-PRICE_SOURCE_PATH = os.getenv('CLASSIFICATION_PRICE_SOURCE_PATH', DATA_PATH)
 OUT_DIR = os.getenv(
     'CLASSIFICATION_OUT_DIR',
     os.path.join(ROOT, 'ml', 'classification', 'results'),

@@ -48,10 +48,12 @@ import matplotlib; matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.feature_selection import mutual_info_classif
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import DATA_PATH, DROP_COLS, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
+from config import DATA_PATH, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
+from step3_technical_improve import add_technical_features
 
 from metrics import evaluate, get_scores, METRIC_COLS, SORT_COLS
 
@@ -96,21 +98,35 @@ def train_eval(X_train, X_eval, y_train, y_eval, weights, model):
 
 def main():
     seed = set_global_seed()
-    print(f'\n{P}\n STEP 5: WEIGHT DECAY\n{P}')
+    print(f'\n{P}\n STEP 7: WEIGHT DECAY\n{P}')
     print(f'  Seed: {seed}')
     print(f'  Parallelism: model_jobs={MODEL_N_JOBS}')
 
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
+    df = add_technical_features(df)
 
-    features = [c for c in df.columns if c not in DROP_COLS and c != TARGET]
+    exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
+    all_features = [c for c in df.columns if c not in exclude]
 
     train_mask, test_mask, _ = get_train_test_masks(df)
 
-    X_train = df.loc[train_mask, features]
-    X_test = df.loc[test_mask, features]
+    X_train_full = df.loc[train_mask, all_features]
+    X_test_full = df.loc[test_mask, all_features]
     y_train = (df.loc[train_mask, TARGET] > 0).astype(int)
     y_test = (df.loc[test_mask, TARGET] > 0).astype(int)
 
+    mi = mutual_info_classif(X_train_full.fillna(0), y_train, random_state=RS, n_neighbors=5)
+    sp = X_train_full.corrwith(df.loc[train_mask, TARGET], method='spearman').abs()
+    rank = pd.DataFrame({'feature': all_features, 'MI': mi, 'abs_sp': sp.values})
+    for c in ['MI', 'abs_sp']:
+        mx = rank[c].max()
+        rank[f'{c}_n'] = rank[c] / mx if mx > 0 else 0
+    rank['score'] = (rank['MI_n'] + rank['abs_sp_n']) / 2
+    rank.sort_values('score', ascending=False, inplace=True)
+    top50 = rank.head(50)['feature'].tolist()
+
+    X_train = X_train_full[top50]
+    X_test = X_test_full[top50]
     n_train = len(X_train)
     tscv = get_tscv()
     inner_train_idx, inner_eval_idx = list(tscv.split(X_train, y_train))[-1]
@@ -119,7 +135,7 @@ def main():
     y_inner_train = y_train.iloc[inner_train_idx]
     y_inner_eval = y_train.iloc[inner_eval_idx]
 
-    print(f'  Features: {len(features)}')
+    print(f'  Features: {len(top50)} (TOP_50)')
     print(f'  Train: {n_train} | Test: {len(X_test)}')
     print(f'  Inner split for scheme selection: train={len(X_inner_train)} | eval={len(X_inner_eval)}')
 

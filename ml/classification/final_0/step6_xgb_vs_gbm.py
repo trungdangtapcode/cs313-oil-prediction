@@ -35,9 +35,10 @@ Usage:
 """
 import os, sys, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 import pandas as pd
-from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from sklearn.model_selection import GridSearchCV, ParameterGrid
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.feature_selection import mutual_info_classif
@@ -47,21 +48,15 @@ from lightgbm import LGBMClassifier
 from config import DATA_PATH, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
 from step3_technical_improve import add_technical_features
 
+from metrics import evaluate, get_scores, METRIC_COLS, SORT_COLS
+
 P = '=' * 90
-OUT = OUT_DIR
+OUT = os.path.join(os.path.dirname(__file__), 'results')
 os.makedirs(OUT, exist_ok=True)
 CPU_COUNT = os.cpu_count() or 1
 SEARCH_N_JOBS = max(1, int(os.getenv('SEARCH_N_JOBS', str(min(8, max(1, CPU_COUNT // 6))))))
 
 
-def evaluate(model, X, y):
-    pred = model.predict(X)
-    prob = model.predict_proba(X)[:, 1]
-    return {
-        'Accuracy': accuracy_score(y, pred),
-        'F1_macro': f1_score(y, pred, average='macro'),
-        'AUC': roc_auc_score(y, prob),
-    }
 
 
 def main():
@@ -162,13 +157,12 @@ def main():
         )
         gs.fit(X_train, y_train)
         elapsed = round(time.time() - t0, 1)
-        val_metrics = evaluate(gs.best_estimator_, X_test, y_test)
+        pred = gs.best_estimator_.predict(X_test)
+        score = get_scores(gs.best_estimator_, X_test)
+        val_metrics = evaluate(name, y_test.values, pred, score)
         val_rows.append({
-            'Model': name,
+            **val_metrics,
             'CV_Acc': gs.best_score_,
-            'Test_Accuracy': val_metrics['Accuracy'],
-            'Test_F1_macro': val_metrics['F1_macro'],
-            'Test_AUC': val_metrics['AUC'],
             'Time_s': elapsed,
             'Params': str(gs.best_params_),
             'Estimator': gs.best_estimator_,
@@ -176,10 +170,8 @@ def main():
 
         print(f'  Best params: {gs.best_params_}')
         print(f'  CV Acc:  {gs.best_score_:.4f}')
-        print(
-            f'  Test:    Acc={val_metrics["Accuracy"]:.4f} '
-            f'F1m={val_metrics["F1_macro"]:.4f} AUC={val_metrics["AUC"]:.4f}'
-        )
+        print(f'  Test:    Acc={val_metrics["Accuracy"]:.4f} '
+            f'F1m={val_metrics["F1_macro"]:.4f} AUC={val_metrics["AUC"]:.4f}')
         print(f'  Time:    {elapsed}s')
 
         cv_results = pd.DataFrame(gs.cv_results_).sort_values('rank_test_score')
@@ -188,11 +180,11 @@ def main():
         for _, row in cv_results.head(10).iterrows():
             print(f'  {int(row["rank_test_score"]):<6} {row["mean_test_score"]:>8.4f} {row["std_test_score"]:>8.4f}')
 
-    vdf = pd.DataFrame(val_rows).sort_values(['Test_Accuracy', 'Test_F1_macro', 'Test_AUC'], ascending=False)
+    vdf = pd.DataFrame(val_rows).sort_values(SORT_COLS, ascending=False)
     vdf.drop(columns=['Estimator']).to_csv(os.path.join(OUT, 'step7_test_results.csv'), index=False)
 
     print(f'\n{P}\n TEST COMPARISON\n{P}')
-    print(vdf[['Model', 'CV_Acc', 'Test_Accuracy', 'Test_F1_macro', 'Test_AUC', 'Time_s']].to_string(index=False))
+    print(vdf[METRIC_COLS + ['CV_Acc', 'Time_s']].to_string(index=False))
 
     best = vdf.iloc[0]
     winner = best['Estimator']
@@ -201,17 +193,24 @@ def main():
         'Model': best['Model'],
         'Selected_On': 'test',
         'CV_Acc': best['CV_Acc'],
-        'Test_Accuracy': best['Test_Accuracy'],
-        'Test_F1_macro': best['Test_F1_macro'],
-        'Test_AUC': best['Test_AUC'],
+        'Accuracy': best['Accuracy'],
+        'F1_binary': best['F1_binary'],
+        'F1_macro': best['F1_macro'],
+        'AUC': best['AUC'],
+        'Precision_UP': best['Precision_UP'],
+        'Recall_UP': best['Recall_UP'],
+        'TP': best['TP'],
+        'FP': best['FP'],
+        'TN': best['TN'],
+        'FN': best['FN'],
         'Params': best['Params'],
     }
     pd.DataFrame([holdout_row]).to_csv(os.path.join(OUT, 'step7_results.csv'), index=False)
 
     print(f'\n Winner selected on test: {best["Model"]}')
     print(
-        f' Test: Acc={best["Test_Accuracy"]:.4f} '
-        f'F1m={best["Test_F1_macro"]:.4f} AUC={best["Test_AUC"]:.4f}'
+        f' Test: Acc={best["Accuracy"]:.4f} '
+        f'F1m={best["F1_macro"]:.4f} AUC={best["AUC"]:.4f}'
     )
 
     print(f'\n{P}\n DONE\n{P}')

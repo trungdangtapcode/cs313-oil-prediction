@@ -140,9 +140,9 @@
  Best case on train CV: MI_SPEARMAN_TOP_30 (30 features)
  Test model comparison:
   Model  Test_Accuracy  Test_F1_macro  Test_AUC    CV_Acc  Time_s       Selected_Case      Ranking  N_Features
-1   GBM       0.507143       0.451289  0.525817  0.530769    93.3  MI_SPEARMAN_TOP_30  mi_spearman          30
-2  LGBM       0.503571       0.466654  0.515681  0.533728     2.3  MI_SPEARMAN_TOP_30  mi_spearman          30
-3   XGB       0.501190       0.446059  0.524672  0.550296    11.9  MI_SPEARMAN_TOP_30  mi_spearman          30
+1   GBM       0.507143       0.451289  0.525817  0.530769    93.3  MI_SPEARMAN_TOP_20  mi_spearman          20
+2  LGBM       0.503571       0.466654  0.515681  0.533728     2.3  MI_SPEARMAN_TOP_20  mi_spearman          20
+3   XGB       0.510190       0.446059  0.524672  0.550296    11.9  MI_SPEARMAN_TOP_20  mi_spearman          20
 
  Final test (GBM selected on test): Acc=0.5071 F1m=0.4513 AUC=0.5258
 

@@ -56,7 +56,8 @@ from sklearn.ensemble import GradientBoostingClassifier
 from xgboost import XGBClassifier
 from lightgbm import LGBMClassifier
 
-from config import DATA_PATH, DROP_COLS, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
+from config import DATA_PATH, OUT_DIR, RANDOM_STATE as RS, TARGET, TARGET_DATE_COL, get_tscv, get_train_test_masks, set_global_seed
+from step3_technical_improve import add_technical_features
 
 from metrics import evaluate, get_scores, METRIC_COLS, SORT_COLS
 
@@ -81,10 +82,12 @@ def main():
     print(f'  Final randomized-search iterations: {STEP5_N_ITER}')
     print(f'  Extra top-N sets: {STEP5_TOPN_LIST}')
 
-    # Load + split
+    # Load + technicals (shifted)
     df = pd.read_csv(DATA_PATH, parse_dates=['date']).sort_values('date').reset_index(drop=True)
+    df = add_technical_features(df)
 
-    features = [c for c in df.columns if c not in DROP_COLS and c != TARGET]
+    exclude = {'date', TARGET, TARGET_DATE_COL, 'oil_close'}
+    features = [c for c in df.columns if c not in exclude]
 
     train_mask, test_mask, _ = get_train_test_masks(df)
 

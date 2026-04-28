@@ -1,0 +1,56 @@
+
+==========================================================================================
+ CLASSIFICATION FINE-TUNE + ENSEMBLE
+==========================================================================================
+  Seed: 42
+  Parallelism: search_jobs=8 | model_jobs=12
+  Random search iterations: 30
+  Train: 2082 | Test: 840
+  Train targets: 2015-01-08 -> 2022-12-30
+  Test targets:  2023-01-02 -> 2026-03-20
+  Features: 25 (TOP_25)
+  Model-time preprocessing schema: step5c_baked_scaled_passthrough
+  Input is baked-scaled step5c dataset -> skip model-time scaler
+
+--- GBM_v2 ---
+  Best: {'subsample': 0.8, 'n_estimators': 500, 'min_samples_leaf': 5, 'max_depth': 7, 'learning_rate': 0.03}
+  CV=0.5510 | Test Acc=0.5155 F1m=0.4728 AUC=0.5528
+
+--- XGB_v2 ---
+  Best: {'subsample': 1.0, 'reg_alpha': 0, 'n_estimators': 200, 'max_depth': 5, 'learning_rate': 0.03}
+  CV=0.5591 | Test Acc=0.5214 F1m=0.4902 AUC=0.5459
+
+--- LGBM_v2 ---
+  Best: {'num_leaves': 15, 'n_estimators': 200, 'min_child_samples': 20, 'max_depth': 3, 'learning_rate': 0.03}
+  CV=0.5504 | Test Acc=0.5214 F1m=0.4699 AUC=0.5351
+
+--- SVM_RBF_v2 ---
+  Best: {'gamma': 0.01, 'C': 5.0}
+  CV=0.5550 | Test Acc=0.5012 F1m=0.4854 AUC=0.5185
+
+--- Voting ---
+  Test Acc=0.5286 F1m=0.4932 AUC=0.5407
+
+--- Stacking ---
+  Test Acc=0.5202 F1m=0.5153 AUC=0.5374
+
+==========================================================================================
+ TEST RESULTS
+==========================================================================================
+     Model  Accuracy  F1_binary  F1_macro      AUC  Precision_UP  Recall_UP  TP  FP  TN  FN   CV_Acc  Time_s
+  Stacking  0.520238   0.466225  0.515275 0.537444      0.522255   0.421053 176 161 261 242      NaN     8.6
+    Voting  0.528571   0.359223  0.493171 0.540704      0.555000   0.265550 111  89 333 307      NaN     2.2
+    XGB_v2  0.521429   0.363924  0.490168 0.545874      0.537383   0.275120 115  99 323 303 0.559078    27.3
+SVM_RBF_v2  0.501190   0.395382  0.485432 0.518458      0.498182   0.327751 137 138 284 281 0.555043     1.4
+    GBM_v2  0.515476   0.322795  0.472797 0.552836      0.530055   0.232057  97  86 336 321 0.551009   127.4
+   LGBM_v2  0.521429   0.304498  0.469853 0.535097      0.550000   0.210526  88  72 350 330 0.550432     6.2
+
+==========================================================================================
+ SELECTED CANDIDATE
+==========================================================================================
+  Stacking: Test Acc=0.5202 F1m=0.5153 AUC=0.5374
+  Saved model bundle: ml/classification/final/results/step2_selected_bundle.joblib
+
+==========================================================================================
+ DONE
+==========================================================================================

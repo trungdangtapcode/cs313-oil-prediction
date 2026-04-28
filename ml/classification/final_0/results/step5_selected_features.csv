@@ -1,0 +1,16 @@
+feature
+fatalities_7d
+ret_mean_20
+sp500_return_lag1
+bb_upper
+conflict_intensity_7d
+oil_return
+ma_20
+gdelt_volume_lag1
+wti_fred
+yield_spread
+usd_return
+sp500_return
+usd_close
+net_imports_weekly
+macd_signal

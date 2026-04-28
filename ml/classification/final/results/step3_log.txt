@@ -1,0 +1,144 @@
+
+==========================================================================================
+ STEP 3: FEATURE SELECTION + RETRAIN
+==========================================================================================
+  Seed: 42
+  Parallelism: search_jobs=8 | model_jobs=12
+  Final randomized-search iterations: 15
+  Subset sizes: [5, 8, 10, 12, 15, 18, 20, 22, 25]
+  Total features: 27
+  Train: 2082 | Test: 840
+  Target: UP=1069 (51.3%) | DOWN=1013
+
+==========================================================================================
+ 1. FEATURE RANKING
+==========================================================================================
+
+ #    Feature                              MI     |Sp|      Mix   MI_rk   Sp_rk   Mix_rk
+ --------------------------------------------------------------------------------------------
+ 1    day_of_week_sin                  0.0191   0.0714   1.0000       1       1        1
+ 2    inventory_zscore                 0.0116   0.0385   0.5739       3      13        2
+ 3    gdelt_tone_30d                   0.0086   0.0478   0.5597       7       9        3
+ 4    gdelt_volume_lag1_log1p          0.0094   0.0442   0.5565       5      11        4
+ 5    gdelt_tone_7d                    0.0054   0.0495   0.4877       9       8        5
+ 6    conflict_intensity_7d_log1p      0.0000   0.0691   0.4843      14       2        6
+ 7    conflict_event_count_log1p       0.0000   0.0677   0.4746      15       3        7
+ 8    inventory_change_pct             0.0000   0.0627   0.4392      16       4        8
+ 9    fatalities_log1p                 0.0026   0.0516   0.4301      13       5        9
+ 10   fatalities_7d_log1p              0.0086   0.0289   0.4283       6      18       10
+ 11   gdelt_goldstein                  0.0037   0.0457   0.4177      12      10       11
+ 12   gdelt_goldstein_7d               0.0000   0.0516   0.3614      17       6       12
+ 13   gdelt_tone_lag1                  0.0000   0.0508   0.3558      18       7       13
+ 14   oil_return_lag2                  0.0128   0.0018   0.3494       2      27       14
+ 15   vix_return_slog1p                0.0116   0.0053   0.3407       4      25       15
+ 16   production_change_pct_slog1p     0.0046   0.0315   0.3405      10      17       16
+ 17   month_sin                        0.0000   0.0423   0.2967      19      12       17
+ 18   oil_return_lag1                  0.0000   0.0371   0.2598      20      14       18
+ 19   sp500_return                     0.0038   0.0214   0.2489      11      21       19
+ 20   yield_spread                     0.0057   0.0135   0.2448       8      22       20
+ 21   oil_return                       0.0000   0.0330   0.2313      21      15       21
+ 22   gdelt_events_log1p               0.0000   0.0319   0.2234      22      16       22
+ 23   net_imports_change_pct_slog1p    0.0000   0.0282   0.1979      23      19       23
+ 24   day_of_week_cos                  0.0000   0.0261   0.1832      24      20       24
+ 25   month_cos                        0.0000   0.0130   0.0913      25      23       25
+ 26   usd_return                       0.0000   0.0055   0.0384      26      24       26
+ 27   vix_lag1_log1p                   0.0000   0.0028   0.0199      27      26       27
+
+ Top 10 by ranking scheme:
+  spearman: day_of_week_sin, conflict_intensity_7d_log1p, conflict_event_count_log1p, inventory_change_pct, fatalities_log1p, gdelt_goldstein_7d, gdelt_tone_lag1, gdelt_tone_7d, gdelt_tone_30d, gdelt_goldstein
+  mi: day_of_week_sin, oil_return_lag2, inventory_zscore, vix_return_slog1p, gdelt_volume_lag1_log1p, fatalities_7d_log1p, gdelt_tone_30d, yield_spread, gdelt_tone_7d, production_change_pct_slog1p
+  mi_spearman: day_of_week_sin, inventory_zscore, gdelt_tone_30d, gdelt_volume_lag1_log1p, gdelt_tone_7d, conflict_intensity_7d_log1p, conflict_event_count_log1p, inventory_change_pct, fatalities_log1p, fatalities_7d_log1p
+
+==========================================================================================
+ 2. SUBSET COMPARISON (28 cases, LGBM proxy)
+==========================================================================================
+  Cases: 28
+
+ Case                     Rank             N   CV_Acc
+ --------------------------------------------------------
+ SPEARMAN_TOP_5           spearman         5   0.5135
+ SPEARMAN_TOP_8           spearman         8   0.5239
+ SPEARMAN_TOP_10          spearman        10   0.5078
+ SPEARMAN_TOP_12          spearman        12   0.5130
+ SPEARMAN_TOP_15          spearman        15   0.5037
+ SPEARMAN_TOP_18          spearman        18   0.5233
+ SPEARMAN_TOP_20          spearman        20   0.5285
+ SPEARMAN_TOP_22          spearman        22   0.5372
+ SPEARMAN_TOP_25          spearman        25   0.5274
+ MI_TOP_5                 mi               5   0.5280
+ MI_TOP_8                 mi               8   0.5285
+ MI_TOP_10                mi              10   0.5245
+ MI_TOP_12                mi              12   0.5182
+ MI_TOP_15                mi              15   0.4980
+ MI_TOP_18                mi              18   0.5210
+ MI_TOP_20                mi              20   0.5205
+ MI_TOP_22                mi              22   0.5274
+ MI_TOP_25                mi              25   0.5464
+ MI_SPEARMAN_TOP_5        mi_spearman      5   0.5032
+ MI_SPEARMAN_TOP_8        mi_spearman      8   0.5049
+ MI_SPEARMAN_TOP_10       mi_spearman     10   0.4945
+ MI_SPEARMAN_TOP_12       mi_spearman     12   0.5187
+ MI_SPEARMAN_TOP_15       mi_spearman     15   0.5193
+ MI_SPEARMAN_TOP_18       mi_spearman     18   0.5274
+ MI_SPEARMAN_TOP_20       mi_spearman     20   0.5205
+ MI_SPEARMAN_TOP_22       mi_spearman     22   0.5274
+ MI_SPEARMAN_TOP_25       mi_spearman     25   0.5464
+ ALL_27                   all             27   0.5435
+
+ Best case on train CV: MI_TOP_25 (25 features, CV_Acc=0.5464)
+
+ Best case by ranking family:
+  spearman      SPEARMAN_TOP_22          CV_Acc=0.5372
+  mi            MI_TOP_25                CV_Acc=0.5464
+  mi_spearman   MI_SPEARMAN_TOP_25       CV_Acc=0.5464
+  all           ALL_27                   CV_Acc=0.5435
+
+==========================================================================================
+ 3. TRAIN ON MI_TOP_25 (25 features)
+==========================================================================================
+
+--- XGB ---
+  Best: {'reg_alpha': 0, 'n_estimators': 300, 'max_depth': 5, 'learning_rate': 0.05}
+  CV_Acc=0.5499 | Test: Acc=0.5083 F1m=0.4815 AUC=0.5475 (19.0s)
+
+--- GBM ---
+  Best: {'n_estimators': 300, 'min_samples_leaf': 5, 'max_depth': 7, 'learning_rate': 0.05}
+  CV_Acc=0.5487 | Test: Acc=0.5179 F1m=0.4921 AUC=0.5511 (67.9s)
+
+--- LGBM ---
+  Best: {'num_leaves': 15, 'n_estimators': 500, 'max_depth': 7, 'learning_rate': 0.05}
+  CV_Acc=0.5527 | Test: Acc=0.5250 F1m=0.4930 AUC=0.5514 (173.6s)
+
+==========================================================================================
+ SUMMARY
+==========================================================================================
+
+ Best case on train CV: MI_TOP_25 (25 features)
+ Test model comparison:
+  Model  Accuracy  F1_binary  F1_macro       AUC  Precision_UP  Recall_UP   TP   FP   TN   FN    CV_Acc  Time_s
+1  LGBM  0.525000   0.365660  0.493011  0.551418      0.545024   0.275120  115   96  326  303  0.552738   173.6
+2   GBM  0.517857   0.377880  0.492147  0.551124      0.527897   0.294258  123  110  312  295  0.548703    67.9
+3   XGB  0.508333   0.363636  0.481527  0.547495      0.510823   0.282297  118  113  309  300  0.549856    19.0
+
+ Final test (LGBM selected on test): Acc=0.5250 F1m=0.4930 AUC=0.5514
+
+ Top 15 features used in MI_TOP_25:
+    1. day_of_week_sin                MI=0.0191 |Sp|=0.0714 Mix=1.0000
+    2. oil_return_lag2                MI=0.0128 |Sp|=0.0018 Mix=0.3494
+    3. inventory_zscore               MI=0.0116 |Sp|=0.0385 Mix=0.5739
+    4. vix_return_slog1p              MI=0.0116 |Sp|=0.0053 Mix=0.3407
+    5. gdelt_volume_lag1_log1p        MI=0.0094 |Sp|=0.0442 Mix=0.5565
+    6. fatalities_7d_log1p            MI=0.0086 |Sp|=0.0289 Mix=0.4283
+    7. gdelt_tone_30d                 MI=0.0086 |Sp|=0.0478 Mix=0.5597
+    8. yield_spread                   MI=0.0057 |Sp|=0.0135 Mix=0.2448
+    9. gdelt_tone_7d                  MI=0.0054 |Sp|=0.0495 Mix=0.4877
+   10. production_change_pct_slog1p   MI=0.0046 |Sp|=0.0315 Mix=0.3405
+   11. sp500_return                   MI=0.0038 |Sp|=0.0214 Mix=0.2489
+   12. gdelt_goldstein                MI=0.0037 |Sp|=0.0457 Mix=0.4177
+   13. fatalities_log1p               MI=0.0026 |Sp|=0.0516 Mix=0.4301
+   14. conflict_intensity_7d_log1p    MI=0.0000 |Sp|=0.0691 Mix=0.4843
+   15. conflict_event_count_log1p     MI=0.0000 |Sp|=0.0677 Mix=0.4746
+
+==========================================================================================
+ DONE
+==========================================================================================
