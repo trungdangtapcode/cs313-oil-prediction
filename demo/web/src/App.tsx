@@ -227,7 +227,7 @@ function App() {
           </div>
           <div className="topbar__meta">
             <Pill tone={apiHealth ? "good" : "info"}>{apiHealth ? "API online" : "static bundle"}</Pill>
-            <Pill tone="neutral">GCP {data.manifest.local_control_status.gcp_project}</Pill>
+            <Pill tone="neutral">Cloud Run live</Pill>
           </div>
         </header>
         {page}
@@ -346,8 +346,8 @@ function MissionControl({ data, apiHealth }: { data: DemoData; apiHealth: unknow
           </div>
           <div className="status-tile">
             <Rocket size={20} />
-            <strong>{data.manifest.local_control_status.gcp_project}</strong>
-            <span>GCP deploy target</span>
+            <strong>Managed deployment</strong>
+            <span>frontend and backend release target</span>
           </div>
           <div className="status-tile">
             <Smartphone size={20} />

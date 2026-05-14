@@ -6,7 +6,7 @@ test("renders the mission dashboard from generated ML data", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "Mission" })).toBeVisible();
   await expect(page.getByText("ENS_FINAL3").first()).toBeVisible();
   await expect(page.getByText("54.8%")).toBeVisible();
-  await expect(page.getByText("GCP husky-car")).toBeVisible();
+  await expect(page.getByText("Cloud Run live")).toBeVisible();
 });
 
 test("mobile view exposes the decision microscope tab", async ({ page }) => {

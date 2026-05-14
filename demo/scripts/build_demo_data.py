@@ -1196,8 +1196,8 @@ def build() -> None:
         "source_hashes": source_hashes,
         "local_control_status": {
             "github_repo": "trungdangtapcode/cs313-oil-prediction",
-            "gcp_project": "husky-car",
-            "gcp_cli_account": "tcuong1000@gmail.com",
+            "gcp_project": "redacted",
+            "gcp_cli_account": "redacted",
             "ci_note": "GitHub Actions requires a separate deploy identity; local gcloud auth is not inherited.",
         },
     }
