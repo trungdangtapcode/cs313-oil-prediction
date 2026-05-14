@@ -26,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'husky-car' }}
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
   GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY || 'oil-signal-mine' }}
   BACKEND_SERVICE: oil-signal-mine-backend
@@ -55,8 +55,8 @@ jobs:
 
       - name: Check deploy auth configuration
         run: |
-          if [ -z "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] || [ -z "${{ vars.GCP_SERVICE_ACCOUNT }}" ]; then
-            echo "Configure GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT repository variables."
+          if [ -z "$GCP_PROJECT_ID" ] || [ -z "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] || [ -z "${{ vars.GCP_SERVICE_ACCOUNT }}" ]; then
+            echo "Configure GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER, and GCP_SERVICE_ACCOUNT repository variables."
             exit 1
           fi
 
@@ -109,6 +109,7 @@ jobs:
             --format='value(status.url)')"
           echo "BACKEND_URL=$BACKEND_URL" >> "$GITHUB_ENV"
           echo "Backend URL: $BACKEND_URL"
+          echo "::notice title=Backend URL::$BACKEND_URL"
 
       - name: Build and push frontend image
         run: |
@@ -131,14 +132,21 @@ jobs:
             --format='value(status.url)')"
           echo "WEB_URL=$WEB_URL" >> "$GITHUB_ENV"
           echo "Web URL: $WEB_URL"
+          echo "::notice title=Frontend URL::$WEB_URL"
 
       - name: Deployment summary
         run: |
           {
-            echo "## Oil Signal Mine deployment"
+            echo "# Oil Signal Mine Deployment URLs"
             echo ""
-            echo "- Frontend: $WEB_URL"
-            echo "- Backend: $BACKEND_URL"
-            echo "- Project: $GCP_PROJECT_ID"
-            echo "- Region: $GCP_REGION"
+            echo "| Service | URL |"
+            echo "| --- | --- |"
+            echo "| Frontend website | [$WEB_URL]($WEB_URL) |"
+            echo "| Backend API | [$BACKEND_URL]($BACKEND_URL) |"
+            echo "| Backend health | [$BACKEND_URL/health]($BACKEND_URL/health) |"
+            echo "| Trading thresholds | [$BACKEND_URL/api/trading/thresholds?model=xgb]($BACKEND_URL/api/trading/thresholds?model=xgb) |"
+            echo ""
+            echo "Frontend is built with this backend API URL:"
+            echo ""
+            echo "\`$BACKEND_URL\`"
           } >> "$GITHUB_STEP_SUMMARY"
