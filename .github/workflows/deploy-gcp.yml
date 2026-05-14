@@ -27,8 +27,8 @@ concurrency:
 
 env:
   GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'husky-car' }}
-  GCP_REGION: ${{ inputs.region || vars.GCP_REGION || 'us-central1' }}
-  GAR_REPOSITORY: ${{ inputs.artifact_repository || vars.GAR_REPOSITORY || 'oil-signal-mine' }}
+  GCP_REGION: ${{ vars.GCP_REGION || 'us-central1' }}
+  GAR_REPOSITORY: ${{ vars.GAR_REPOSITORY || 'oil-signal-mine' }}
   BACKEND_SERVICE: oil-signal-mine-backend
   WEB_SERVICE: oil-signal-mine-web
 
@@ -55,25 +55,17 @@ jobs:
 
       - name: Check deploy auth configuration
         run: |
-          if [ -z "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] && [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
-            echo "Configure GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT variables or GCP_SA_KEY secret."
+          if [ -z "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] || [ -z "${{ vars.GCP_SERVICE_ACCOUNT }}" ]; then
+            echo "Configure GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT repository variables."
             exit 1
           fi
 
       - id: auth-wif
         name: Authenticate to GCP with Workload Identity
-        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' }}
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-
-      - id: auth-key
-        name: Authenticate to GCP with service account key fallback
-        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' && secrets.GCP_SA_KEY != '' }}
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - uses: google-github-actions/setup-gcloud@v2
 
