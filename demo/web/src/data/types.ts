@@ -315,6 +315,8 @@ export type ApkInfo = {
   artifact_name: string;
   download_path: string;
   version: string;
+  version_code?: number | null;
+  version_name?: string | null;
   commit: string | null;
   built_at: string | null;
   size_bytes: number | null;

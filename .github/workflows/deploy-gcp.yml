@@ -56,6 +56,18 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
+      - name: Install stable Android debug signing key
+        env:
+          ANDROID_DEBUG_KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$ANDROID_DEBUG_KEYSTORE_B64" ]; then
+            mkdir -p "$HOME/.android"
+            echo "$ANDROID_DEBUG_KEYSTORE_B64" | base64 --decode > "$HOME/.android/debug.keystore"
+            chmod 600 "$HOME/.android/debug.keystore"
+          else
+            echo "ANDROID_DEBUG_KEYSTORE_B64 is not configured; Android will generate an ephemeral debug key."
+          fi
+
       - name: Build and validate shared ML data
         run: |
           python3 demo/scripts/build_demo_data.py
@@ -123,6 +135,8 @@ jobs:
         run: |
           cd demo/web
           npm ci
+          export VERSION_CODE="$(date -u +%s)"
+          export VERSION_NAME="1.0.${GITHUB_SHA::7}"
           VITE_API_BASE_URL="$BACKEND_URL" npm run build
           npx cap sync android
           cd android
@@ -145,6 +159,8 @@ jobs:
             "artifact_name": "oil-signal-mine-latest.apk",
             "download_path": "/downloads/oil-signal-mine-latest.apk",
             "version": "debug",
+            "version_code": $VERSION_CODE,
+            "version_name": "$VERSION_NAME",
             "commit": "$GITHUB_SHA",
             "built_at": "$APK_BUILT_AT",
             "size_bytes": $APK_SIZE,
@@ -157,6 +173,8 @@ jobs:
           echo "APK_DOWNLOAD_PATH=/downloads/oil-signal-mine-latest.apk" >> "$GITHUB_ENV"
           echo "APK_SIZE=$APK_SIZE" >> "$GITHUB_ENV"
           echo "APK_SHA256=$APK_SHA256" >> "$GITHUB_ENV"
+          echo "APK_VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "APK_VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
 
       - name: Upload deploy APK artifact
         uses: actions/upload-artifact@v4
@@ -208,4 +226,8 @@ jobs:
             echo "APK SHA256:"
             echo ""
             echo "\`$APK_SHA256\`"
+            echo ""
+            echo "APK version:"
+            echo ""
+            echo "\`$APK_VERSION_NAME ($APK_VERSION_CODE)\`"
           } >> "$GITHUB_STEP_SUMMARY"

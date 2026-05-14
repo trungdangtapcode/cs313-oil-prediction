@@ -4,6 +4,8 @@
   "artifact_name": "oil-signal-mine-latest.apk",
   "download_path": "/downloads/oil-signal-mine-latest.apk",
   "version": "debug",
+  "version_code": null,
+  "version_name": null,
   "commit": null,
   "built_at": null,
   "size_bytes": null,
