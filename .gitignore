@@ -3,7 +3,26 @@ echo
 __pycache__/
 __pycache__
 .venv/
+.ml-venv/
 __pycache__/**
 **/__pycache__/**
 other_eda_preprocess/
 CODEX_HANDOFF_*.md
+bertviz
+bertviz/**
+
+# Local input archives already extracted into docs/
+oil_direction_team_docs_md.zip
+
+# Generated artifacts from ml/improve-classification
+ml/improve-classification/logs/
+ml/improve-classification/models/
+ml/improve-classification/results/
+ml/improve-classification/SESSION_CONTEXT.md
+ml/improve-classification/.mplconfig/
+
+# Python/tool caches
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
