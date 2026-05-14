@@ -1,0 +1,193 @@
+{
+  "rows": [
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 00 Data Quality Overview",
+      "file": "step5_upgraded_00_data_quality_overview.png",
+      "path": "/assets/eda-current/step5_upgraded_00_data_quality_overview.png",
+      "source": "assets/eda_current/step5_upgraded_00_data_quality_overview.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 01 Class Distribution",
+      "file": "step5_upgraded_01_class_distribution.png",
+      "path": "/assets/eda-current/step5_upgraded_01_class_distribution.png",
+      "source": "assets/eda_current/step5_upgraded_01_class_distribution.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 02 Class By Year",
+      "file": "step5_upgraded_02_class_by_year.png",
+      "path": "/assets/eda-current/step5_upgraded_02_class_by_year.png",
+      "source": "assets/eda_current/step5_upgraded_02_class_by_year.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 03 Target Over Time",
+      "file": "step5_upgraded_03_target_over_time.png",
+      "path": "/assets/eda-current/step5_upgraded_03_target_over_time.png",
+      "source": "assets/eda_current/step5_upgraded_03_target_over_time.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 06 Signal Scores",
+      "file": "step5_upgraded_06_signal_scores.png",
+      "path": "/assets/eda-current/step5_upgraded_06_signal_scores.png",
+      "source": "assets/eda_current/step5_upgraded_06_signal_scores.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 06B Acf Pacf Target",
+      "file": "step5_upgraded_06b_acf_pacf_target.png",
+      "path": "/assets/eda-current/step5_upgraded_06b_acf_pacf_target.png",
+      "source": "assets/eda_current/step5_upgraded_06b_acf_pacf_target.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 06C Multicollinearity",
+      "file": "step5_upgraded_06c_multicollinearity.png",
+      "path": "/assets/eda-current/step5_upgraded_06c_multicollinearity.png",
+      "source": "assets/eda_current/step5_upgraded_06c_multicollinearity.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 06D Calendar Patterns",
+      "file": "step5_upgraded_06d_calendar_patterns.png",
+      "path": "/assets/eda-current/step5_upgraded_06d_calendar_patterns.png",
+      "source": "assets/eda_current/step5_upgraded_06d_calendar_patterns.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 07 Ranking And Shift",
+      "file": "step5_upgraded_07_ranking_and_shift.png",
+      "path": "/assets/eda-current/step5_upgraded_07_ranking_and_shift.png",
+      "source": "assets/eda_current/step5_upgraded_07_ranking_and_shift.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 10 Corr Top15",
+      "file": "step5_upgraded_10_corr_top15.png",
+      "path": "/assets/eda-current/step5_upgraded_10_corr_top15.png",
+      "source": "assets/eda_current/step5_upgraded_10_corr_top15.png"
+    },
+    {
+      "group": "eda-current",
+      "name": "Step5 Upgraded 13 Class Shift",
+      "file": "step5_upgraded_13_class_shift.png",
+      "path": "/assets/eda-current/step5_upgraded_13_class_shift.png",
+      "source": "assets/eda_current/step5_upgraded_13_class_shift.png"
+    },
+    {
+      "group": "eda-legacy",
+      "name": "01 Oil Returns Over Time",
+      "file": "01_oil_returns_over_time.png",
+      "path": "/assets/eda-legacy/01_oil_returns_over_time.png",
+      "source": "assets/eda_legacy_presentation/01_oil_returns_over_time.png"
+    },
+    {
+      "group": "eda-legacy",
+      "name": "02 Target Class Balance",
+      "file": "02_target_class_balance.png",
+      "path": "/assets/eda-legacy/02_target_class_balance.png",
+      "source": "assets/eda_legacy_presentation/02_target_class_balance.png"
+    },
+    {
+      "group": "eda-legacy",
+      "name": "03 Target Over Time",
+      "file": "03_target_over_time.png",
+      "path": "/assets/eda-legacy/03_target_over_time.png",
+      "source": "assets/eda_legacy_presentation/03_target_over_time.png"
+    },
+    {
+      "group": "eda-legacy",
+      "name": "04 Data Quality",
+      "file": "04_data_quality.png",
+      "path": "/assets/eda-legacy/04_data_quality.png",
+      "source": "assets/eda_legacy_presentation/04_data_quality.png"
+    },
+    {
+      "group": "eda-legacy",
+      "name": "05 Feature Signals",
+      "file": "05_feature_signals.png",
+      "path": "/assets/eda-legacy/05_feature_signals.png",
+      "source": "assets/eda_legacy_presentation/05_feature_signals.png"
+    },
+    {
+      "group": "eda-legacy",
+      "name": "06 Timeseries Properties",
+      "file": "06_timeseries_properties.png",
+      "path": "/assets/eda-legacy/06_timeseries_properties.png",
+      "source": "assets/eda_legacy_presentation/06_timeseries_properties.png"
+    },
+    {
+      "group": "eda-legacy",
+      "name": "07 Split Leakage Check",
+      "file": "07_split_leakage_check.png",
+      "path": "/assets/eda-legacy/07_split_leakage_check.png",
+      "source": "assets/eda_legacy_presentation/07_split_leakage_check.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step1 Backtest",
+      "file": "step1_backtest.png",
+      "path": "/assets/ml-legacy/step1_backtest.png",
+      "source": "assets/ml_legacy_step5c/step1_backtest.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step1 Confusion",
+      "file": "step1_confusion.png",
+      "path": "/assets/ml-legacy/step1_confusion.png",
+      "source": "assets/ml_legacy_step5c/step1_confusion.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step1 Roc",
+      "file": "step1_roc.png",
+      "path": "/assets/ml-legacy/step1_roc.png",
+      "source": "assets/ml_legacy_step5c/step1_roc.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step4 Feature Importance Mi",
+      "file": "step4_feature_importance_MI.png",
+      "path": "/assets/ml-legacy/step4_feature_importance_MI.png",
+      "source": "assets/ml_legacy_step5c/step4_feature_importance_MI.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step4 Feature Importance Abs Sp",
+      "file": "step4_feature_importance_abs_sp.png",
+      "path": "/assets/ml-legacy/step4_feature_importance_abs_sp.png",
+      "source": "assets/ml_legacy_step5c/step4_feature_importance_abs_sp.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step4 Feature Importance Mi Spearman Mix",
+      "file": "step4_feature_importance_mi_spearman_mix.png",
+      "path": "/assets/ml-legacy/step4_feature_importance_mi_spearman_mix.png",
+      "source": "assets/ml_legacy_step5c/step4_feature_importance_mi_spearman_mix.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step4 Feature Importance Mix Score",
+      "file": "step4_feature_importance_mix_score.png",
+      "path": "/assets/ml-legacy/step4_feature_importance_mix_score.png",
+      "source": "assets/ml_legacy_step5c/step4_feature_importance_mix_score.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step6 Comparison",
+      "file": "step6_comparison.png",
+      "path": "/assets/ml-legacy/step6_comparison.png",
+      "source": "assets/ml_legacy_step5c/step6_comparison.png"
+    },
+    {
+      "group": "ml-legacy",
+      "name": "Step6 Weight Schemes",
+      "file": "step6_weight_schemes.png",
+      "path": "/assets/ml-legacy/step6_weight_schemes.png",
+      "source": "assets/ml_legacy_step5c/step6_weight_schemes.png"
+    }
+  ]
+}

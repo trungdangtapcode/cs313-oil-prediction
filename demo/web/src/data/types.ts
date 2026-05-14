@@ -1,0 +1,133 @@
+export type Manifest = {
+  app_name: string;
+  data_version: string;
+  report_timestamp: string;
+  problem: string;
+  target: string;
+  best_model: {
+    model: string;
+    model_config: string;
+    experiment: string;
+    accuracy: number;
+    f1_macro: number;
+    auc: number;
+    n: number;
+    coverage: number;
+  };
+  counts: {
+    leaderboard_rows: number;
+    test_days: number;
+    feature_rows: number;
+    assets: number;
+  };
+  local_control_status: {
+    github_repo: string;
+    gcp_project: string;
+    gcp_cli_account: string;
+    ci_note: string;
+  };
+};
+
+export type LeaderboardRow = {
+  rank: number;
+  Model: string;
+  ModelConfig: string;
+  Experiment: string;
+  ModelType: string;
+  Accuracy: number;
+  F1_macro: number;
+  AUC: number;
+  MCC: number;
+  Brier: number;
+  N: number;
+  Coverage: number;
+  ThresholdMode: string;
+};
+
+export type FeatureRow = {
+  rank: number;
+  feature: string;
+  group: string;
+  selected: boolean;
+  risk: string;
+  why: string;
+  MI: number;
+  abs_sp: number;
+  mix_score: number;
+};
+
+export type PredictionDay = {
+  date: string;
+  target: number;
+  models: Record<
+    string,
+    {
+      experiment: string;
+      proba_up: number;
+      pred_05: number;
+      pred_val_threshold: number;
+      threshold: number;
+    }
+  >;
+};
+
+export type DecisionRow = {
+  date: string;
+  target: number;
+  actual_label: "UP" | "DOWN";
+  proba_up: number;
+  pred: number;
+  pred_label: "UP" | "DOWN";
+  correct: boolean;
+  confidence_margin: number;
+  val_threshold: number;
+  val_threshold_pred: number;
+};
+
+export type CurveRow = {
+  threshold?: number;
+  min_margin?: number;
+  coverage_rate?: number;
+  accuracy: number | null;
+  f1_macro: number | null;
+  pos_rate: number | null;
+  n: number;
+};
+
+export type DatasetStage = {
+  file: string;
+  rows: number;
+  columns: number;
+  date_min: string;
+  date_max: string;
+};
+
+export type AssetItem = {
+  group: string;
+  name: string;
+  file: string;
+  path: string;
+  source: string;
+};
+
+export type MlopsStatus = {
+  report_timestamp: string;
+  validation_rules: string[];
+  source_hashes: Record<string, string>;
+  metric_contract: Record<string, unknown>;
+};
+
+export type DemoData = {
+  manifest: Manifest;
+  leaderboard: { rows: LeaderboardRow[]; best_by_experiment: LeaderboardRow[] };
+  predictions: { models: string[]; rows: PredictionDay[] };
+  decisions: { model: string; rows: DecisionRow[] };
+  features: { rows: FeatureRow[]; selected: Record<string, unknown> };
+  featureGroups: { rows: Array<{ group: string; total: number; selected: number; low_risk: number; features: string[] }> };
+  confidence: { model: string; rows: CurveRow[] };
+  thresholds: { model: string; rows: CurveRow[] };
+  datasets: { rows: DatasetStage[] };
+  leakage: { rows: Array<Record<string, string>> };
+  assets: { rows: AssetItem[] };
+  mlops: MlopsStatus;
+};

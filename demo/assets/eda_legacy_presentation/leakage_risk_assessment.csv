@@ -1,0 +1,20 @@
+,feature,available_at,risk,note
+0,oil_return_lag1,t-1,Low,Explicit lag — safe
+1,oil_return_lag2,t-2,Low,Explicit lag — safe
+2,vix_lag1,t-1,Low,Explicit lag — safe
+3,gdelt_tone_lag1,t-1,Low,Explicit lag — safe
+4,gdelt_volume_lag1,t-1,Low,Explicit lag — safe
+5,oil_volatility_7d,t (7d bkwd),Low,Backward rolling — safe
+6,gdelt_tone_7d,t (7d bkwd),Low,Backward rolling — safe
+7,gdelt_tone_30d,t (30d bkwd),Low,Backward rolling — safe
+8,geopolitical_stress_index,t,Low,Normalized on train only per step4
+9,inventory_zscore,t,Low,Rolling z-score backward
+10,yield_spread,t,Medium,Daily market data — available at t
+11,usd_return,t,Medium,Same-day market return
+12,sp500_return,t,Medium,Same-day market return
+13,vix_return,t,Medium,Same-day market return
+14,cpi_lag,t-1m+,Low,Lagged macro indicator
+15,unemployment_lag,t-1m+,Low,Lagged macro indicator
+16,fed_rate_change,FOMC,Low,Announced — no look-ahead
+17,oil_return,t,HIGH,TARGET SOURCE — must NOT be used as feature
+18,direction,t,HIGH,TARGET — must NOT be used as feature

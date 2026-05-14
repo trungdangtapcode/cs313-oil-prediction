@@ -1,0 +1,6 @@
+Experiment,ResultsFile,Exists,Rows,Configs,ValRows,TestRows,SelectiveRows
+baseline,baseline_results.csv,True,21,7,7,14,0
+feature_selection,feature_selection_results.csv,True,12,4,4,8,0
+weight_decay,weight_decay_results.csv,True,110,10,10,20,80
+ensemble,ensemble_results.csv,True,44,4,4,8,32
+deep_learning,dl_results.csv,True,24,8,8,16,0

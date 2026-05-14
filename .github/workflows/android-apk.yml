@@ -1,0 +1,76 @@
+name: android-apk
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "demo/**"
+      - ".github/workflows/android-apk.yml"
+  pull_request:
+    paths:
+      - "demo/**"
+      - ".github/workflows/android-apk.yml"
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug-apk:
+    name: Build Capacitor debug APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: demo/web/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Rebuild shared ML data
+        run: python3 ../scripts/build_demo_data.py
+
+      - name: Validate shared ML data
+        run: python3 ../scripts/validate_demo_data.py
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web assets and sync Capacitor
+        run: npm run cap:sync
+
+      - name: Build debug APK
+        run: cd android && ./gradlew assembleDebug
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: oil-signal-mine-debug-apk
+          path: demo/web/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload Android build reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-reports
+          path: |
+            demo/web/android/build/reports
+            demo/web/android/app/build/reports
+          if-no-files-found: ignore

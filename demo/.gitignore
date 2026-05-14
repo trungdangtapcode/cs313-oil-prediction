@@ -1,0 +1,8 @@
+**/node_modules/
+web/dist/
+backend/dist/
+web/playwright-report/
+web/test-results/
+web/android/.gradle/
+web/android/app/build/
+web/android/build/

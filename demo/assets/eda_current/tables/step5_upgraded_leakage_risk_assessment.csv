@@ -1,0 +1,28 @@
+feature,group,risk,why
+day_of_week_cos,Calendar,low,Calendar cyclical encoding.
+day_of_week_sin,Calendar,low,Calendar cyclical encoding.
+month_cos,Calendar,low,Calendar cyclical encoding.
+month_sin,Calendar,low,Calendar cyclical encoding.
+conflict_event_count_log1p,Conflict,low,Backward-looking or deterministic transformed feature.
+conflict_intensity_7d_log1p,Conflict,low,Backward-looking or deterministic transformed feature.
+fatalities_7d_log1p,Conflict,low,Backward-looking or deterministic transformed feature.
+fatalities_log1p,Conflict,low,Backward-looking or deterministic transformed feature.
+gdelt_events_log1p,GDELT,low,Backward-looking or deterministic transformed feature.
+gdelt_goldstein,GDELT,low,No obvious future or publication-timing risk in the feature name.
+gdelt_goldstein_7d,GDELT,low,Backward-looking or deterministic transformed feature.
+gdelt_tone_30d,GDELT,low,Backward-looking or deterministic transformed feature.
+gdelt_tone_7d,GDELT,low,Backward-looking or deterministic transformed feature.
+gdelt_tone_lag1,GDELT,low,Backward-looking or deterministic transformed feature.
+gdelt_volume_lag1_log1p,GDELT,low,Backward-looking or deterministic transformed feature.
+yield_spread,Macro,low,No obvious future or publication-timing risk in the feature name.
+oil_return_lag1,Market,low,Backward-looking or deterministic transformed feature.
+oil_return_lag2,Market,low,Backward-looking or deterministic transformed feature.
+vix_lag1_log1p,Market,low,Backward-looking or deterministic transformed feature.
+inventory_change_pct,Supply,low,No obvious future or publication-timing risk in the feature name.
+inventory_zscore,Supply,low,Backward-looking or deterministic transformed feature.
+net_imports_change_pct_slog1p,Supply,low,Backward-looking or deterministic transformed feature.
+production_change_pct_slog1p,Supply,low,Backward-looking or deterministic transformed feature.
+oil_return,Market,medium,Same-day return feature; safe only for end-of-day T -> T+1 setup.
+sp500_return,Market,medium,Same-day return feature; safe only for end-of-day T -> T+1 setup.
+usd_return,Market,medium,Same-day return feature; safe only for end-of-day T -> T+1 setup.
+vix_return_slog1p,Market,medium,Same-day return feature; safe only for end-of-day T -> T+1 setup.

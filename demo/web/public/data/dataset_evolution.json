@@ -1,0 +1,39 @@
+{
+  "rows": [
+    {
+      "file": "data/processed/dataset_step4_transformed.csv",
+      "rows": 2922,
+      "columns": 56,
+      "date_min": "2015-01-07",
+      "date_max": "2026-03-19"
+    },
+    {
+      "file": "data/processed/dataset_step4_noleak.csv",
+      "rows": 2922,
+      "columns": 44,
+      "date_min": "2015-01-07",
+      "date_max": "2026-03-19"
+    },
+    {
+      "file": "data/processed/dataset_final_noleak.csv",
+      "rows": 2922,
+      "columns": 28,
+      "date_min": "2015-01-07",
+      "date_max": "2026-03-19"
+    },
+    {
+      "file": "data/processed/dataset_final_noleak_processed.csv",
+      "rows": 2922,
+      "columns": 30,
+      "date_min": "2015-01-07",
+      "date_max": "2026-03-19"
+    },
+    {
+      "file": "data/processed/dataset_final_noleak_step5c_scaler.csv",
+      "rows": 2922,
+      "columns": 30,
+      "date_min": "2015-01-07",
+      "date_max": "2026-03-19"
+    }
+  ]
+}

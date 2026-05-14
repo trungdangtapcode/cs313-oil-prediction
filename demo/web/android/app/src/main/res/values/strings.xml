@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Oil Direction Signal Mine</string>
+    <string name="title_activity_main">Oil Direction Signal Mine</string>
+    <string name="package_name">ai.oildirection.signalmine</string>
+    <string name="custom_url_scheme">ai.oildirection.signalmine</string>
+</resources>

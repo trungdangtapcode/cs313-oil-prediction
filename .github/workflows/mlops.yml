@@ -1,0 +1,67 @@
+name: mlops-artifact-gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * 1"
+  push:
+    branches: ["main"]
+    paths:
+      - "demo/artifacts/**"
+      - "demo/data/**"
+      - "demo/scripts/**"
+      - "ml/improve-classification/**"
+      - ".github/workflows/mlops.yml"
+
+concurrency:
+  group: mlops-artifact-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-artifacts:
+    name: Validate latest staged ML artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build generated app data
+        run: python3 demo/scripts/build_demo_data.py
+
+      - name: Validate generated app data
+        run: python3 demo/scripts/validate_demo_data.py
+
+      - name: Check optional source freshness
+        run: |
+          if [ -f ml/improve-classification/REPORT.md ]; then
+            diff -q ml/improve-classification/REPORT.md demo/artifacts/improve_classification/REPORT.md
+          else
+            echo "ml/improve-classification/REPORT.md not present in checkout; skipping source freshness diff."
+          fi
+
+      - name: Summarize MLOps manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("demo/web/public/data/demo_manifest.json").read_text())
+          print("Report:", manifest["report_timestamp"])
+          print("Best model:", manifest["best_model"]["model_config"])
+          print("Accuracy:", manifest["best_model"]["accuracy"])
+          print("F1 macro:", manifest["best_model"]["f1_macro"])
+          print("AUC:", manifest["best_model"]["auc"])
+          PY
+
+      - name: Upload MLOps data bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlops-data-bundle
+          path: |
+            demo/web/public/data/demo_manifest.json
+            demo/web/public/data/mlops_status.json
+            demo/web/public/data/leaderboard.json
+            demo/web/public/data/feature_ranking.json

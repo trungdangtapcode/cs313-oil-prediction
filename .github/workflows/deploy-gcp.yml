@@ -1,0 +1,152 @@
+name: deploy-gcp
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: "GCP region"
+        required: false
+        default: "us-central1"
+      artifact_repository:
+        description: "Artifact Registry Docker repository"
+        required: false
+        default: "oil-signal-mine"
+  push:
+    branches: ["main"]
+    paths:
+      - "demo/**"
+      - ".github/workflows/deploy-gcp.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-gcp-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'husky-car' }}
+  GCP_REGION: ${{ inputs.region || vars.GCP_REGION || 'us-central1' }}
+  GAR_REPOSITORY: ${{ inputs.artifact_repository || vars.GAR_REPOSITORY || 'oil-signal-mine' }}
+  BACKEND_SERVICE: oil-signal-mine-backend
+  WEB_SERVICE: oil-signal-mine-web
+
+jobs:
+  deploy:
+    name: Deploy frontend and backend to Cloud Run
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build and validate shared ML data
+        run: |
+          python3 demo/scripts/build_demo_data.py
+          python3 demo/scripts/validate_demo_data.py
+
+      - name: Check deploy auth configuration
+        run: |
+          if [ -z "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" ] && [ -z "${{ secrets.GCP_SA_KEY }}" ]; then
+            echo "Configure GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT variables or GCP_SA_KEY secret."
+            exit 1
+          fi
+
+      - id: auth-wif
+        name: Authenticate to GCP with Workload Identity
+        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - id: auth-key
+        name: Authenticate to GCP with service account key fallback
+        if: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER == '' && secrets.GCP_SA_KEY != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Enable required APIs
+        run: |
+          gcloud services enable run.googleapis.com artifactregistry.googleapis.com --project "$GCP_PROJECT_ID"
+
+      - name: Ensure Artifact Registry repository
+        run: |
+          gcloud artifacts repositories describe "$GAR_REPOSITORY" \
+            --location "$GCP_REGION" \
+            --project "$GCP_PROJECT_ID" \
+          || gcloud artifacts repositories create "$GAR_REPOSITORY" \
+            --repository-format docker \
+            --location "$GCP_REGION" \
+            --description "Oil Signal Mine demo containers" \
+            --project "$GCP_PROJECT_ID"
+
+      - name: Configure Docker auth
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push backend image
+        run: |
+          BACKEND_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${BACKEND_SERVICE}:${GITHUB_SHA}"
+          docker build -t "$BACKEND_IMAGE" demo/backend
+          docker push "$BACKEND_IMAGE"
+          echo "BACKEND_IMAGE=$BACKEND_IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy backend
+        run: |
+          gcloud run deploy "$BACKEND_SERVICE" \
+            --image "$BACKEND_IMAGE" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_ID" \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-env-vars NODE_ENV=production
+          BACKEND_URL="$(gcloud run services describe "$BACKEND_SERVICE" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_ID" \
+            --format='value(status.url)')"
+          echo "BACKEND_URL=$BACKEND_URL" >> "$GITHUB_ENV"
+          echo "Backend URL: $BACKEND_URL"
+
+      - name: Build and push frontend image
+        run: |
+          WEB_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${WEB_SERVICE}:${GITHUB_SHA}"
+          docker build --build-arg VITE_API_BASE_URL="$BACKEND_URL" -t "$WEB_IMAGE" demo/web
+          docker push "$WEB_IMAGE"
+          echo "WEB_IMAGE=$WEB_IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy frontend
+        run: |
+          gcloud run deploy "$WEB_SERVICE" \
+            --image "$WEB_IMAGE" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_ID" \
+            --platform managed \
+            --allow-unauthenticated
+          WEB_URL="$(gcloud run services describe "$WEB_SERVICE" \
+            --region "$GCP_REGION" \
+            --project "$GCP_PROJECT_ID" \
+            --format='value(status.url)')"
+          echo "WEB_URL=$WEB_URL" >> "$GITHUB_ENV"
+          echo "Web URL: $WEB_URL"
+
+      - name: Deployment summary
+        run: |
+          {
+            echo "## Oil Signal Mine deployment"
+            echo ""
+            echo "- Frontend: $WEB_URL"
+            echo "- Backend: $BACKEND_URL"
+            echo "- Project: $GCP_PROJECT_ID"
+            echo "- Region: $GCP_REGION"
+          } >> "$GITHUB_STEP_SUMMARY"

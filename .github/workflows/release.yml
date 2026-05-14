@@ -1,0 +1,95 @@
+name: demo-release
+
+on:
+  push:
+    tags:
+      - "demo-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-build:
+    name: Build release artifacts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            demo/web/package-lock.json
+            demo/backend/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Rebuild and validate shared ML data
+        run: |
+          python3 ../scripts/build_demo_data.py
+          python3 ../scripts/validate_demo_data.py
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Build web
+        run: npm run build
+
+      - name: Sync and build Android debug APK
+        run: |
+          npm run cap:sync
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Install backend dependencies
+        working-directory: demo/backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: demo/backend
+        run: npm run build
+
+      - name: Pack web dist
+        run: tar -czf oil-signal-mine-web-dist.tar.gz dist
+
+      - name: Pack backend dist
+        working-directory: demo/backend
+        run: tar -czf oil-signal-mine-backend-dist.tar.gz dist data package.json package-lock.json
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: oil-signal-mine-release-artifacts
+          path: |
+            demo/web/oil-signal-mine-web-dist.tar.gz
+            demo/backend/oil-signal-mine-backend-dist.tar.gz
+            demo/web/android/app/build/outputs/apk/debug/app-debug.apk
+            demo/web/public/data/demo_manifest.json
+
+      - name: Create GitHub release for tags
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            oil-signal-mine-web-dist.tar.gz \
+            ../backend/oil-signal-mine-backend-dist.tar.gz \
+            android/app/build/outputs/apk/debug/app-debug.apk \
+            public/data/demo_manifest.json \
+            --title "Oil Signal Mine ${GITHUB_REF_NAME}" \
+            --notes "Release built from latest staged ML demo data."

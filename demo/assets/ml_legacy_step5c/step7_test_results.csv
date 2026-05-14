@@ -1,0 +1,4 @@
+Model,CV_Acc,Test_Accuracy,Test_F1_macro,Test_AUC,Time_s,Params
+XGBoost,0.5372781065088758,0.5202380952380953,0.4852495061880454,0.5584650445588335,37.5,"{'subsample': 0.7, 'scale_pos_weight': 1.1, 'reg_lambda': 1.0, 'reg_alpha': 0.1, 'n_estimators': 200, 'min_child_weight': 5, 'max_depth': 8, 'learning_rate': 0.08, 'gamma': 0.5, 'colsample_bytree': 0.5}"
+LightGBM,0.5372781065088758,0.5190476190476191,0.4569753449909112,0.554655434363591,18.4,"{'subsample': 0.7, 'reg_lambda': 1.0, 'reg_alpha': 1.0, 'num_leaves': 31, 'n_estimators': 300, 'min_child_samples': 10, 'max_depth': 8, 'learning_rate': 0.03, 'colsample_bytree': 1.0}"
+GBM,0.5384615384615385,0.5154761904761904,0.4913340207197918,0.5308567087689064,154.3,"{'subsample': 0.7, 'n_estimators': 300, 'min_samples_split': 2, 'min_samples_leaf': 20, 'max_features': 0.5, 'max_depth': 3, 'learning_rate': 0.005}"

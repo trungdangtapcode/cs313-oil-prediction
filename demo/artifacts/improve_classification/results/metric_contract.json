@@ -1,0 +1,26 @@
+{
+  "one_setup": {
+    "dataset": "data/processed/dataset_final_noleak_step5c_scaler.csv",
+    "target": "oil_return_fwd1 > 0 => UP=1",
+    "train_for_validation": "target date < 2022-01-01",
+    "validation": "2022-01-01 <= target date < 2023-01-01",
+    "final_refit": "target date < 2023-01-01",
+    "test": "target date >= 2023-01-01"
+  },
+  "main_leaderboard": {
+    "coverage": "Coverage == 1.0",
+    "split": "Split == test",
+    "threshold_policy": "fixed_0.5",
+    "one_row_per_model_configuration": true,
+    "primary_sort": [
+      "F1_macro",
+      "Accuracy",
+      "AUC"
+    ]
+  },
+  "diagnostics": {
+    "threshold_diagnostics": "Compares fixed_0.5 against validation-selected thresholds.",
+    "selective_coverage": "Confidence-filter rows; not comparable to full-coverage leaderboard.",
+    "historical_reference": "Old final pipeline rows; reference only because LogLoss/Brier are unavailable."
+  }
+}

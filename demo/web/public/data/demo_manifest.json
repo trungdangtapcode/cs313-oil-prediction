@@ -1,0 +1,50 @@
+{
+  "app_name": "Oil Direction Signal Mine",
+  "data_version": "2026-05-14_120811_UTC",
+  "generated_from": "demo/scripts/build_demo_data.py",
+  "report_timestamp": "2026-05-14 12:08:11 UTC",
+  "problem": "Predict whether next trading day oil return is UP or DOWN.",
+  "target": "oil_return_fwd1 > 0",
+  "split_contract": {
+    "train": "target date < 2022-01-01",
+    "validation": "2022-01-01 <= target date < 2023-01-01",
+    "test": "target date >= 2023-01-01"
+  },
+  "best_model": {
+    "model": "ENS_FINAL3_th05",
+    "model_config": "ENS_FINAL3",
+    "experiment": "ensemble",
+    "accuracy": 0.5476190476190477,
+    "f1_macro": 0.5405766396462786,
+    "auc": 0.535119843987392,
+    "n": 840,
+    "coverage": 1.0
+  },
+  "counts": {
+    "leaderboard_rows": 33,
+    "test_days": 1680,
+    "wide_prediction_days": 840,
+    "feature_rows": 27,
+    "assets": 27
+  },
+  "source_hashes": {
+    "artifacts/improve_classification/REPORT.md": "d6dbad234d316e18bc2c1fd55a68dd4912e0b30875b33193a1accdae1d1a8b1a",
+    "artifacts/improve_classification/results/primary_test_leaderboard.csv": "fb46c981ad2221d37ac558a5c17ebf2a682006ba29041af454fba6b68fc60287",
+    "artifacts/improve_classification/results/ml_test_predictions.csv": "af3208a8bac3042a95c0679cd5aa93c77511fc617ae085f73c904fdeea22df9e",
+    "artifacts/improve_classification/results/dl_test_predictions.csv": "e3ac9df4d10adf8e90054be745b02040ddfa8ea128b0b2b5c5ad7e9abcb60776",
+    "artifacts/improve_classification/results/ensemble_test_predictions.csv": "1235991cb82c91635be36f9a6e722a1f5076266671139c0ab5fe094c242a88f3",
+    "artifacts/improve_classification/results/feature_ranking.csv": "7716e9ac747f18e349545b781e9fe6f814fd390c01d492fbdb96e9f84bc6c44a",
+    "artifacts/improve_classification/results/selected_features.json": "c5863ef135559e9bcaa019974dfe3d02655884c1badf49ab3e1d3615581974aa",
+    "artifacts/improve_classification/results/threshold_diagnostics.csv": "f34f4384969f65a9b32940967aff7aaa6840cc01449c50bb80e468335f3534cf",
+    "artifacts/improve_classification/results/selective_coverage_diagnostics.csv": "0b256fe9cf28661d633a3e69ad67070c515de9e74e356a792ddaffc7c92ae416",
+    "artifacts/improve_classification/results/metric_contract.json": "59054b33a214232a3986db100b06b3e9a94126def57ffff19e719211447f2cb6",
+    "data/processed/dataset_final_noleak_step5c_scaler.csv": "4c6b30498d4bd86179ca9186db12de79d36268507834c73f9591dfcae7efbabf",
+    "assets/eda_current/tables/step5_upgraded_leakage_risk_assessment.csv": "09c4ba5e82aba60208174799e46888e7000608b20d236a52aaf537ec1c1ed407"
+  },
+  "local_control_status": {
+    "github_repo": "trungdangtapcode/cs313-oil-prediction",
+    "gcp_project": "husky-car",
+    "gcp_cli_account": "tcuong1000@gmail.com",
+    "ci_note": "GitHub Actions requires a separate deploy identity; local gcloud auth is not inherited."
+  }
+}

@@ -1,0 +1,14 @@
+#
+# Python dependencies for demo data-generation scripts only.
+# The planned app itself is React/Vite/TypeScript under demo/web.
+#
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+joblib>=1.3
+pillow>=10.0
+
+# Optional for Phase 2 model explanations / direct model inference.
+shap>=0.45
+xgboost>=2.0
+lightgbm>=4.0

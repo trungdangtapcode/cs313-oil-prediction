@@ -1,0 +1,166 @@
+{
+  "rows": [
+    {
+      "feature": "day_of_week_cos",
+      "group": "Calendar",
+      "risk": "low",
+      "why": "Calendar cyclical encoding."
+    },
+    {
+      "feature": "day_of_week_sin",
+      "group": "Calendar",
+      "risk": "low",
+      "why": "Calendar cyclical encoding."
+    },
+    {
+      "feature": "month_cos",
+      "group": "Calendar",
+      "risk": "low",
+      "why": "Calendar cyclical encoding."
+    },
+    {
+      "feature": "month_sin",
+      "group": "Calendar",
+      "risk": "low",
+      "why": "Calendar cyclical encoding."
+    },
+    {
+      "feature": "conflict_event_count_log1p",
+      "group": "Conflict",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "conflict_intensity_7d_log1p",
+      "group": "Conflict",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "fatalities_7d_log1p",
+      "group": "Conflict",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "fatalities_log1p",
+      "group": "Conflict",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "gdelt_events_log1p",
+      "group": "GDELT",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "gdelt_goldstein",
+      "group": "GDELT",
+      "risk": "low",
+      "why": "No obvious future or publication-timing risk in the feature name."
+    },
+    {
+      "feature": "gdelt_goldstein_7d",
+      "group": "GDELT",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "gdelt_tone_30d",
+      "group": "GDELT",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "gdelt_tone_7d",
+      "group": "GDELT",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "gdelt_tone_lag1",
+      "group": "GDELT",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "gdelt_volume_lag1_log1p",
+      "group": "GDELT",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "yield_spread",
+      "group": "Macro",
+      "risk": "low",
+      "why": "No obvious future or publication-timing risk in the feature name."
+    },
+    {
+      "feature": "oil_return_lag1",
+      "group": "Market",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "oil_return_lag2",
+      "group": "Market",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "vix_lag1_log1p",
+      "group": "Market",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "inventory_change_pct",
+      "group": "Supply",
+      "risk": "low",
+      "why": "No obvious future or publication-timing risk in the feature name."
+    },
+    {
+      "feature": "inventory_zscore",
+      "group": "Supply",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "net_imports_change_pct_slog1p",
+      "group": "Supply",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "production_change_pct_slog1p",
+      "group": "Supply",
+      "risk": "low",
+      "why": "Backward-looking or deterministic transformed feature."
+    },
+    {
+      "feature": "oil_return",
+      "group": "Market",
+      "risk": "medium",
+      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+    },
+    {
+      "feature": "sp500_return",
+      "group": "Market",
+      "risk": "medium",
+      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+    },
+    {
+      "feature": "usd_return",
+      "group": "Market",
+      "risk": "medium",
+      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+    },
+    {
+      "feature": "vix_return_slog1p",
+      "group": "Market",
+      "risk": "medium",
+      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+    }
+  ]
+}

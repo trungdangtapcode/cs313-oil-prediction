@@ -1,0 +1,32 @@
+{
+  "selected_case": "SPEARMAN_TOP_25",
+  "selected_ranking": "spearman",
+  "selected_n": 25,
+  "selected_features": [
+    "conflict_event_count_log1p",
+    "conflict_intensity_7d_log1p",
+    "day_of_week_sin",
+    "inventory_change_pct",
+    "fatalities_log1p",
+    "gdelt_goldstein_7d",
+    "gdelt_volume_lag1_log1p",
+    "gdelt_tone_lag1",
+    "net_imports_change_pct_slog1p",
+    "gdelt_tone_7d",
+    "gdelt_tone_30d",
+    "gdelt_goldstein",
+    "inventory_zscore",
+    "gdelt_events_log1p",
+    "month_sin",
+    "day_of_week_cos",
+    "oil_return",
+    "yield_spread",
+    "production_change_pct_slog1p",
+    "fatalities_7d_log1p",
+    "oil_return_lag1",
+    "month_cos",
+    "sp500_return",
+    "oil_return_lag2",
+    "usd_return"
+  ]
+}

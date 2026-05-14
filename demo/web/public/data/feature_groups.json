@@ -1,0 +1,77 @@
+{
+  "rows": [
+    {
+      "group": "Calendar",
+      "total": 4,
+      "selected": 4,
+      "low_risk": 4,
+      "features": [
+        "day_of_week_sin",
+        "day_of_week_cos",
+        "month_sin",
+        "month_cos"
+      ]
+    },
+    {
+      "group": "Conflict",
+      "total": 4,
+      "selected": 4,
+      "low_risk": 4,
+      "features": [
+        "conflict_event_count_log1p",
+        "conflict_intensity_7d_log1p",
+        "fatalities_log1p",
+        "fatalities_7d_log1p"
+      ]
+    },
+    {
+      "group": "GDELT",
+      "total": 7,
+      "selected": 7,
+      "low_risk": 7,
+      "features": [
+        "gdelt_goldstein",
+        "gdelt_tone_7d",
+        "gdelt_tone_30d",
+        "gdelt_volume_lag1_log1p",
+        "gdelt_goldstein_7d",
+        "gdelt_tone_lag1"
+      ]
+    },
+    {
+      "group": "Macro",
+      "total": 1,
+      "selected": 1,
+      "low_risk": 1,
+      "features": [
+        "yield_spread"
+      ]
+    },
+    {
+      "group": "Market",
+      "total": 7,
+      "selected": 5,
+      "low_risk": 3,
+      "features": [
+        "oil_return_lag2",
+        "sp500_return",
+        "vix_return_slog1p",
+        "oil_return",
+        "oil_return_lag1",
+        "usd_return"
+      ]
+    },
+    {
+      "group": "Supply",
+      "total": 4,
+      "selected": 4,
+      "low_risk": 4,
+      "features": [
+        "inventory_zscore",
+        "inventory_change_pct",
+        "production_change_pct_slog1p",
+        "net_imports_change_pct_slog1p"
+      ]
+    }
+  ]
+}
