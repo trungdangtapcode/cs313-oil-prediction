@@ -285,7 +285,7 @@ def build() -> None:
             prediction_rows.extend(read_csv(path))
 
     wide_by_date: OrderedDict[str, dict[str, Any]] = OrderedDict()
-    model_counts: defaultdict[str, int] = defaultdict(int)
+    model_dates: defaultdict[str, set[str]] = defaultdict(set)
     for row in sorted(prediction_rows, key=lambda item: (str(item.get("date")), str(item.get("Model")))):
         model = str(row.get("Model"))
         if model not in featured_models:
@@ -300,14 +300,22 @@ def build() -> None:
             "pred_val_threshold": row.get("pred_val_threshold"),
             "threshold": row.get("threshold"),
         }
-        model_counts[model] += 1
+        model_dates[model].add(date)
 
-    ens_rows = [
+    ens_rows_all = [
         row
         for row in prediction_rows
         if row.get("Model") == "ENS_FINAL3" and row.get("Split") == "test"
     ]
-    ens_rows.sort(key=lambda row: str(row.get("date")))
+    ens_rows_all.sort(key=lambda row: str(row.get("date")))
+    ens_rows = []
+    seen_ens_dates = set()
+    for row in ens_rows_all:
+        date = str(row.get("date"))
+        if date in seen_ens_dates:
+            continue
+        seen_ens_dates.add(date)
+        ens_rows.append(row)
     decision_log = []
     for row in ens_rows:
         proba = float(row["proba_up"])
@@ -448,7 +456,7 @@ def build() -> None:
                 "best_model": manifest["best_model"],
                 "json_files": len(list(WEB_DATA.glob("*.json"))),
                 "assets": len(asset_index),
-                "prediction_models": dict(sorted(model_counts.items())),
+                "prediction_models": {model: len(dates) for model, dates in sorted(model_dates.items())},
             },
             indent=2,
         )

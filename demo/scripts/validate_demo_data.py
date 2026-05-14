@@ -138,6 +138,13 @@ def main() -> None:
     if "ENS_FINAL3" not in predictions.get("models", []):
         fail("ENS_FINAL3 missing from prediction bundle")
 
+    if int(manifest.get("counts", {}).get("test_days", 0)) != EXPECTED["n"]:
+        fail("manifest test_days must match final test rows")
+
+    decisions = load_json(WEB_DATA / "ens_final3_decision_log.json")
+    if len(decisions.get("rows", [])) != EXPECTED["n"]:
+        fail("ENS_FINAL3 decision log row count must match final test rows")
+
     print(
         json.dumps(
             {
