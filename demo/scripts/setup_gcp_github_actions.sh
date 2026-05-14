@@ -65,7 +65,14 @@ if ! gcloud iam workload-identity-pools providers describe "${PROVIDER_ID}" \
     --display-name "GitHub OIDC Provider" \
     --issuer-uri "https://token.actions.githubusercontent.com" \
     --attribute-mapping "google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
-    --attribute-condition "assertion.repository == '${REPO}'"
+    --attribute-condition "attribute.repository == \"${REPO}\""
+else
+  gcloud iam workload-identity-pools providers update-oidc "${PROVIDER_ID}" \
+    --project "${PROJECT_ID}" \
+    --location global \
+    --workload-identity-pool "${POOL_ID}" \
+    --attribute-mapping "google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository,attribute.ref=assertion.ref" \
+    --attribute-condition "attribute.repository == \"${REPO}\""
 fi
 
 gcloud iam service-accounts add-iam-policy-binding "${SERVICE_ACCOUNT_EMAIL}" \
