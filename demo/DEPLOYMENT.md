@@ -97,6 +97,14 @@ Backend: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app
 Backend health: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/health
 ```
 
+Backend research endpoints:
+
+```text
+Live examples: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/api/live/examples
+Live prediction: POST https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/api/live/predict
+Trading summary: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/api/trading/summary
+```
+
 Deploy flow:
 
 ```text

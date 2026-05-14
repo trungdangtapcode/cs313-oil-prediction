@@ -328,6 +328,14 @@ button {
   min-height: 320px;
 }
 
+.feature-importance-layout,
+.explanation-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -699,6 +707,77 @@ input[type="range"] {
   gap: 10px;
 }
 
+.explanation-placeholder {
+  display: grid;
+  gap: 14px;
+}
+
+.explain-panel {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--bg);
+}
+
+.explain-panel header {
+  display: grid;
+  gap: 4px;
+}
+
+.explain-panel header small {
+  color: var(--muted);
+}
+
+.impact-list {
+  display: grid;
+  gap: 10px;
+}
+
+.impact-row {
+  min-height: 28px;
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) auto 68px;
+  gap: 8px;
+  align-items: center;
+}
+
+.impact-name {
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.impact-track {
+  position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-soft);
+}
+
+.impact-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+}
+
+.impact-fill--up {
+  background: var(--mine);
+}
+
+.impact-fill--down {
+  background: var(--red);
+}
+
+.impact-value {
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .loading-shell {
   min-height: 100vh;
   display: grid;
@@ -747,7 +826,9 @@ input[type="range"] {
   }
 
   .hero-panel,
-  .decision-layout {
+  .decision-layout,
+  .feature-importance-layout,
+  .explanation-grid {
     grid-template-columns: 1fr;
   }
 
@@ -808,6 +889,15 @@ input[type="range"] {
     grid-template-columns: 96px 1fr 48px;
   }
 
+  .impact-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .impact-value {
+    text-align: left;
+  }
+
   .mobile-tabs {
     position: fixed;
     right: 12px;
@@ -815,7 +905,7 @@ input[type="range"] {
     left: 12px;
     z-index: 20;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: 6px;
     border: 1px solid var(--line);
     border-radius: var(--radius);

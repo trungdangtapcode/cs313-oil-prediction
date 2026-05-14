@@ -60,6 +60,35 @@ type LivePredictRequest = {
   k?: unknown;
 };
 
+type FeatureAttribution = {
+  feature: string;
+  value: number;
+  absValue: number;
+  direction: "UP" | "DOWN";
+  featureValue: number;
+};
+
+type ScoredNeighbor = {
+  row: LivePredictionRow;
+  distance: number;
+  weight: number;
+};
+
+type FeatureVectorBuild = {
+  featureVector: Record<string, number>;
+  providedFeatures: string[];
+  imputedFeatures: string[];
+};
+
+type VectorScore = {
+  probaUp: number;
+  pred: number;
+  predLabel: "UP" | "DOWN";
+  confidenceMargin: number;
+  neighbors: ReturnType<typeof neighborSummary>[];
+  scored: ScoredNeighbor[];
+};
+
 function asyncRoute(
   handler: express.RequestHandler,
 ): express.RequestHandler {
@@ -121,6 +150,7 @@ export function createApp(): express.Express {
           "/api/mlops/status",
           "/api/live/examples",
           "POST /api/live/predict",
+          "/api/trading/summary",
         ],
       });
     }),
@@ -158,6 +188,7 @@ export function createApp(): express.Express {
   app.get("/api/assets", asyncRoute(async (_req, res) => res.json(await readJson("asset_index.json"))));
   app.get("/api/mlops/status", asyncRoute(async (_req, res) => res.json(await readJson("mlops_status.json"))));
   app.get("/api/live/examples", asyncRoute(async (_req, res) => res.json(await readJson("live_prediction_examples.json"))));
+  app.get("/api/trading/summary", asyncRoute(async (_req, res) => res.json(await readJson("trading_strategy_summary.json"))));
 
   app.post(
     "/api/live/predict",
@@ -191,8 +222,10 @@ export function createApp(): express.Express {
           audit: [
             "This is an exact replay of a validated historical test-period prediction.",
             "No model retraining or live market fetch was performed.",
+            "LIME/SHAP panels are model-agnostic analog explanations from the demo scorer.",
           ],
           neighbors: [neighborSummary(example, 0)],
+          explanations: buildLocalExplanations(reference, example.features, 7),
         });
         return;
       }
@@ -209,6 +242,7 @@ export function createApp(): express.Express {
           "Edited/custom fields are scored by nearest historical analogs in the scaled feature space.",
           "This is a live demo scorer, not production model inference from the serialized LightGBM ensemble.",
           "Missing fields are imputed from the test-period feature means and listed in the response.",
+          "LIME/SHAP panels explain the live demo scorer; production TreeSHAP requires serving the serialized model stack.",
         ],
       });
     }),
@@ -281,11 +315,10 @@ function neighborSummary(row: LivePredictionRow, distance: number) {
   };
 }
 
-function scoreNearestNeighbors(
+function buildFeatureVector(
   reference: LiveReferencePayload,
   rawFeatures: Record<string, unknown>,
-  k: number,
-) {
+): FeatureVectorBuild {
   const imputedFeatures: string[] = [];
   const providedFeatures: string[] = [];
   const featureVector: Record<string, number> = {};
@@ -302,6 +335,14 @@ function scoreNearestNeighbors(
     }
   }
 
+  return { featureVector, providedFeatures, imputedFeatures };
+}
+
+function scoreFeatureVector(
+  reference: LiveReferencePayload,
+  featureVector: Record<string, number>,
+  k: number,
+): VectorScore {
   const scored = reference.rows
     .map((row) => {
       let sumSquared = 0;
@@ -321,18 +362,240 @@ function scoreNearestNeighbors(
   const probaUp = scored.reduce(
     (sum, item) => sum + item.row.prediction.proba_up * item.weight,
     0,
-  ) / weightTotal;
+  ) / (weightTotal || 1);
   const pred = probaUp >= 0.5 ? 1 : 0;
 
   return {
-    targetDate: "custom-as-of-demo",
     probaUp,
     pred,
     predLabel: pred === 1 ? "UP" : "DOWN",
     confidenceMargin: Math.abs(probaUp - 0.5),
+    neighbors: scored.map((item) => neighborSummary(item.row, item.distance)),
+    scored,
+  };
+}
+
+function scoreNearestNeighbors(
+  reference: LiveReferencePayload,
+  rawFeatures: Record<string, unknown>,
+  k: number,
+) {
+  const { featureVector, providedFeatures, imputedFeatures } = buildFeatureVector(reference, rawFeatures);
+  const score = scoreFeatureVector(reference, featureVector, k);
+
+  return {
+    targetDate: "custom-as-of-demo",
+    probaUp: score.probaUp,
+    pred: score.pred,
+    predLabel: score.predLabel,
+    confidenceMargin: score.confidenceMargin,
     featureCompleteness: providedFeatures.length / reference.feature_columns.length,
     providedFeatures,
     imputedFeatures,
-    neighbors: scored.map((item) => neighborSummary(item.row, item.distance)),
+    neighbors: score.neighbors,
+    explanations: buildLocalExplanations(reference, featureVector, k),
   };
+}
+
+function standardizeFeature(
+  reference: LiveReferencePayload,
+  feature: string,
+  value: number,
+): number {
+  const stats = reference.feature_stats[feature];
+  const scale = stats?.std && stats.std > 0 ? stats.std : 1;
+  return (value - (stats?.mean ?? 0)) / scale;
+}
+
+function attribution(
+  feature: string,
+  value: number,
+  featureVector: Record<string, number>,
+): FeatureAttribution {
+  return {
+    feature,
+    value,
+    absValue: Math.abs(value),
+    direction: value >= 0 ? "UP" : "DOWN",
+    featureValue: featureVector[feature],
+  };
+}
+
+function topAttributions(rows: FeatureAttribution[], limit = 10): FeatureAttribution[] {
+  return [...rows]
+    .sort((a, b) => b.absValue - a.absValue)
+    .slice(0, limit);
+}
+
+function buildLocalExplanations(
+  reference: LiveReferencePayload,
+  featureVector: Record<string, number>,
+  k: number,
+) {
+  const shap = buildShapStyleExplanation(reference, featureVector, k);
+  const lime = buildLimeStyleExplanation(reference, featureVector);
+
+  return {
+    note: "These are dependency-free, model-agnostic explanations for the live demo scorer. They are not exact TreeSHAP values from the serialized ensemble.",
+    shap,
+    lime,
+  };
+}
+
+function buildShapStyleExplanation(
+  reference: LiveReferencePayload,
+  featureVector: Record<string, number>,
+  k: number,
+) {
+  const fullScore = scoreFeatureVector(reference, featureVector, k);
+  const baselineVector = Object.fromEntries(
+    reference.feature_columns.map((feature) => [feature, reference.feature_stats[feature]?.mean ?? 0]),
+  ) as Record<string, number>;
+  const baselineScore = scoreFeatureVector(reference, baselineVector, k);
+
+  const rows = reference.feature_columns.map((feature) => {
+    const masked = { ...featureVector, [feature]: reference.feature_stats[feature]?.mean ?? 0 };
+    const maskedScore = scoreFeatureVector(reference, masked, k);
+    return attribution(feature, fullScore.probaUp - maskedScore.probaUp, featureVector);
+  });
+
+  return {
+    method: "SHAP-style mean-baseline leave-one-feature-out",
+    baselineProba: baselineScore.probaUp,
+    predictionProba: fullScore.probaUp,
+    features: topAttributions(rows),
+  };
+}
+
+function buildLimeStyleExplanation(
+  reference: LiveReferencePayload,
+  featureVector: Record<string, number>,
+) {
+  const localRows = reference.rows
+    .map((row) => {
+      let sumSquared = 0;
+      for (const feature of reference.feature_columns) {
+        const inputValue = standardizeFeature(reference, feature, featureVector[feature]);
+        const rowValue = standardizeFeature(reference, feature, row.features[feature]);
+        sumSquared += (inputValue - rowValue) ** 2;
+      }
+      const distance = Math.sqrt(sumSquared / reference.feature_columns.length);
+      const kernelWidth = 0.75;
+      return {
+        row,
+        distance,
+        weight: Math.exp(-(distance ** 2) / (kernelWidth ** 2)),
+      };
+    })
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, Math.max(120, reference.feature_columns.length * 5));
+
+  const p = reference.feature_columns.length + 1;
+  const xtwx = Array.from({ length: p }, () => Array.from({ length: p }, () => 0));
+  const xtwy = Array.from({ length: p }, () => 0);
+
+  for (const item of localRows) {
+    const x = [
+      1,
+      ...reference.feature_columns.map((feature) => (
+        standardizeFeature(reference, feature, item.row.features[feature])
+      )),
+    ];
+    const y = item.row.prediction.proba_up;
+    for (let i = 0; i < p; i += 1) {
+      xtwy[i] += item.weight * x[i] * y;
+      for (let j = 0; j < p; j += 1) {
+        xtwx[i][j] += item.weight * x[i] * x[j];
+      }
+    }
+  }
+
+  for (let i = 1; i < p; i += 1) {
+    xtwx[i][i] += 0.05;
+  }
+
+  const beta = solveLinearSystem(xtwx, xtwy) ?? Array.from({ length: p }, () => 0);
+  const inputZ = reference.feature_columns.map((feature) => (
+    standardizeFeature(reference, feature, featureVector[feature])
+  ));
+  const approximationProba = clampProbability(
+    beta[0] + inputZ.reduce((sum, value, index) => sum + beta[index + 1] * value, 0),
+  );
+  const rows = reference.feature_columns.map((feature, index) => (
+    attribution(feature, beta[index + 1] * inputZ[index], featureVector)
+  ));
+
+  return {
+    method: "LIME-style weighted local linear surrogate",
+    localRows: localRows.length,
+    fidelityR2: weightedR2(reference, localRows, beta),
+    intercept: beta[0],
+    approximationProba,
+    features: topAttributions(rows),
+  };
+}
+
+function clampProbability(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+function weightedR2(
+  reference: LiveReferencePayload,
+  rows: Array<{ row: LivePredictionRow; weight: number }>,
+  beta: number[],
+): number {
+  const weightTotal = rows.reduce((sum, item) => sum + item.weight, 0);
+  if (!weightTotal) {
+    return 0;
+  }
+  const meanY = rows.reduce((sum, item) => sum + item.weight * item.row.prediction.proba_up, 0) / weightTotal;
+  let sse = 0;
+  let sst = 0;
+  for (const item of rows) {
+    const x = [
+      1,
+      ...reference.feature_columns.map((feature) => (
+        standardizeFeature(reference, feature, item.row.features[feature])
+      )),
+    ];
+    const yHat = beta.reduce((sum, value, index) => sum + value * x[index], 0);
+    const y = item.row.prediction.proba_up;
+    sse += item.weight * (y - yHat) ** 2;
+    sst += item.weight * (y - meanY) ** 2;
+  }
+  return sst > 0 ? 1 - sse / sst : 0;
+}
+
+function solveLinearSystem(matrix: number[][], vector: number[]): number[] | null {
+  const n = vector.length;
+  const augmented = matrix.map((row, index) => [...row, vector[index]]);
+
+  for (let col = 0; col < n; col += 1) {
+    let pivot = col;
+    for (let row = col + 1; row < n; row += 1) {
+      if (Math.abs(augmented[row][col]) > Math.abs(augmented[pivot][col])) {
+        pivot = row;
+      }
+    }
+    if (Math.abs(augmented[pivot][col]) < 1e-10) {
+      return null;
+    }
+    [augmented[col], augmented[pivot]] = [augmented[pivot], augmented[col]];
+
+    const pivotValue = augmented[col][col];
+    for (let j = col; j <= n; j += 1) {
+      augmented[col][j] /= pivotValue;
+    }
+    for (let row = 0; row < n; row += 1) {
+      if (row === col) {
+        continue;
+      }
+      const factor = augmented[row][col];
+      for (let j = col; j <= n; j += 1) {
+        augmented[row][j] -= factor * augmented[col][j];
+      }
+    }
+  }
+
+  return augmented.map((row) => row[n]);
 }

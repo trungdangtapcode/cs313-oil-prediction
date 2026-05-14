@@ -17,3 +17,13 @@ test("mobile view exposes the decision microscope tab", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Microscope" })).toBeVisible();
   await expect(page.getByText("Decision Replay")).toBeVisible();
 });
+
+test("renders the trading research page from generated strategy data", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Trading" }).click();
+
+  await expect(page.getByRole("heading", { name: "Trading", exact: true })).toBeVisible();
+  await expect(page.getByText("Equity Curve")).toBeVisible();
+  await expect(page.getByText("Buy & Hold").first()).toBeVisible();
+  await expect(page.getByText("Transaction cost")).toBeVisible();
+});

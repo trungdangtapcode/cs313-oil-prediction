@@ -13,6 +13,7 @@ import {
   Rocket,
   ShieldCheck,
   Smartphone,
+  TrendingUp,
   Trophy,
 } from "lucide-react";
 import {
@@ -37,7 +38,15 @@ import { ProbabilityStrip } from "./components/ProbabilityStrip";
 import { Section } from "./components/Section";
 import { formatNumber, formatPercent, metricTone, compactHash } from "./data/format";
 import { loadApiHealth, loadDemoData, loadLiveExamples, runLivePrediction } from "./data/client";
-import type { DemoData, LeaderboardRow, LiveExample, LiveExamplesPayload, LivePredictionResult, PredictionDay } from "./data/types";
+import type {
+  DemoData,
+  FeatureAttribution,
+  LeaderboardRow,
+  LiveExample,
+  LiveExamplesPayload,
+  LivePredictionResult,
+  PredictionDay,
+} from "./data/types";
 import "./styles/app.css";
 
 const navItems = [
@@ -46,6 +55,7 @@ const navItems = [
   { id: "models", label: "Model Arena", icon: Trophy },
   { id: "decision", label: "Microscope", icon: Microscope },
   { id: "live", label: "Live Demo", icon: PlayCircle },
+  { id: "trading", label: "Trading", icon: TrendingUp },
   { id: "confidence", label: "Confidence", icon: Gauge },
   { id: "audit", label: "Audit", icon: ShieldCheck },
   { id: "ops", label: "DevOps", icon: Rocket },
@@ -66,6 +76,21 @@ function modelColor(experiment: string): string {
     feature_selection: "#f87171",
   };
   return colors[experiment] ?? "#a7b0be";
+}
+
+function formatSignedPercent(value: number, digits = 1): string {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatPercent(value, digits)}`;
+}
+
+function riskTone(risk: string): "good" | "bad" | "neutral" | "info" {
+  if (risk === "low") {
+    return "good";
+  }
+  if (risk === "eod_only") {
+    return "info";
+  }
+  return "bad";
 }
 
 function Pill({ children, tone = "neutral" }: { children: React.ReactNode; tone?: "good" | "bad" | "neutral" | "info" }) {
@@ -134,7 +159,8 @@ function App() {
     data: <DataMine data={data} />,
     models: <ModelArena data={data} />,
     decision: <DecisionMicroscope data={data} />,
-    live: <LivePredictionDemo />,
+    live: <LivePredictionDemo data={data} />,
+    trading: <TradingResearch data={data} />,
     confidence: <ConfidenceLab data={data} />,
     audit: <LeakageAudit data={data} />,
     ops: <DevOpsMlOps data={data} apiHealth={apiHealth} />,
@@ -189,7 +215,7 @@ function App() {
       </main>
 
       <nav className="mobile-tabs" aria-label="Mobile primary">
-        {navItems.slice(0, 5).map((item) => {
+        {navItems.slice(0, 6).map((item) => {
           const Icon = item.icon;
           return (
             <button
@@ -375,6 +401,7 @@ function DataMine({ data }: { data: DemoData }) {
 
 function ModelArena({ data }: { data: DemoData }) {
   const rows = data.leaderboard.rows;
+  const topFeatures = data.features.rows.slice(0, 12);
   const scatter = rows.map((row) => ({
     x: row.AUC,
     y: row.F1_macro,
@@ -426,6 +453,43 @@ function ModelArena({ data }: { data: DemoData }) {
             { key: "auc", header: "AUC", align: "right", render: (row) => formatPercent(row.AUC, 1) },
           ]}
         />
+      </Section>
+
+      <Section title="Global Feature Importance" eyebrow="Mutual information + rank correlation">
+        <div className="feature-importance-layout">
+          <div className="chart-block">
+            <ResponsiveContainer width="100%" height={360}>
+              <BarChart data={topFeatures} layout="vertical" margin={{ left: 18, right: 16 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#25313c" />
+                <XAxis
+                  type="number"
+                  domain={[0, 1]}
+                  tickFormatter={(value) => formatPercent(Number(value), 0)}
+                />
+                <YAxis
+                  dataKey="feature"
+                  tick={{ fill: "#a7b0be", fontSize: 11 }}
+                  type="category"
+                  width={156}
+                />
+                <Tooltip formatter={(value: number) => formatPercent(value, 1)} />
+                <Bar dataKey="mix_score" fill="#31d0aa" name="Mix score" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <DataTable
+            compact
+            rows={topFeatures.slice(0, 8)}
+            columns={[
+              { key: "rank", header: "#", align: "right", render: (row) => row.rank },
+              { key: "feature", header: "Feature", render: (row) => <strong>{row.feature}</strong> },
+              { key: "group", header: "Group", render: (row) => row.group },
+              { key: "mi", header: "MI", align: "right", render: (row) => formatNumber(row.MI, 3) },
+              { key: "sp", header: "|Spearman|", align: "right", render: (row) => formatNumber(row.abs_sp, 3) },
+              { key: "mix", header: "Mix", align: "right", render: (row) => formatNumber(row.mix_score, 3) },
+            ]}
+          />
+        </div>
       </Section>
     </div>
   );
@@ -499,7 +563,7 @@ function DecisionMicroscope({ data }: { data: DemoData }) {
   );
 }
 
-function LivePredictionDemo() {
+function LivePredictionDemo({ data }: { data: DemoData }) {
   const [examples, setExamples] = useState<LiveExamplesPayload | null>(null);
   const [selectedId, setSelectedId] = useState<string>("");
   const [features, setFeatures] = useState<Record<string, number>>({});
@@ -533,6 +597,10 @@ function LivePredictionDemo() {
 
   const selected = examples?.rows.find((row) => row.id === selectedId) ?? examples?.rows[0];
   const visibleFeatures = examples?.feature_columns ?? [];
+  const visibleFeatureSet = new Set(visibleFeatures);
+  const globalLiveFeatures = data.features.rows
+    .filter((row) => visibleFeatureSet.has(row.feature))
+    .slice(0, 8);
 
   function selectExample(example: LiveExample) {
     setSelectedId(example.id);
@@ -655,6 +723,43 @@ function LivePredictionDemo() {
         </div>
       </Section>
 
+      <Section title="Local Feature Importance" eyebrow="LIME + SHAP-style">
+        {result?.explanations ? (
+          <div className="explanation-grid">
+            <ExplanationCard
+              detail={`Baseline ${formatPercent(result.explanations.shap.baselineProba, 1)}, local scorer ${formatPercent(
+                result.explanations.shap.predictionProba,
+                1,
+              )}`}
+              features={result.explanations.shap.features}
+              title="SHAP-style effects"
+            />
+            <ExplanationCard
+              detail={`Approx ${formatPercent(result.explanations.lime.approximationProba, 1)}, R2 ${formatNumber(
+                result.explanations.lime.fidelityR2,
+                2,
+              )}, ${result.explanations.lime.localRows} neighbors`}
+              features={result.explanations.lime.features}
+              title="LIME local surrogate"
+            />
+          </div>
+        ) : (
+          <div className="explanation-placeholder">
+            <p className="muted-copy">Run a replay or edited-field score to see local feature attributions.</p>
+            <DataTable
+              compact
+              rows={globalLiveFeatures}
+              columns={[
+                { key: "rank", header: "#", align: "right", render: (row) => row.rank },
+                { key: "feature", header: "Global top feature", render: (row) => <strong>{row.feature}</strong> },
+                { key: "group", header: "Group", render: (row) => row.group },
+                { key: "mix", header: "Mix", align: "right", render: (row) => formatNumber(row.mix_score, 3) },
+              ]}
+            />
+          </div>
+        )}
+      </Section>
+
       <Section title="Prediction Audit" eyebrow="What the backend did">
         {result ? (
           <div className="audit-stack">
@@ -683,6 +788,195 @@ function LivePredictionDemo() {
         )}
       </Section>
     </div>
+  );
+}
+
+function TradingResearch({ data }: { data: DemoData }) {
+  const trading = data.trading;
+  const comparison = trading.comparison;
+  const buyHold = comparison.find((row) => row.id === "buy_hold") ?? comparison[0];
+  const best = comparison[0];
+  const mlRows = comparison.filter((row) => row.id !== "buy_hold");
+  const equityRows = trading.equity_curve.map((row) => ({
+    date: String(row.date),
+    XGBoost: Number(row.xgb ?? 1),
+    "Random Forest": Number(row.rf ?? 1),
+    Ridge: Number(row.ridge ?? 1),
+    "Buy & Hold": Number(row.buy_hold ?? 1),
+  }));
+  const costRows = comparison.map((row) => ({
+    strategy: row.strategy,
+    net: row.total_return,
+    zero: row.zero_cost_return,
+    drag: row.cost_drag,
+  }));
+  const yearlyRows = ["2023", "2024", "2025", "2026"].map((year) => {
+    const entry: Record<string, string | number> = { year };
+    for (const row of trading.yearly.filter((item) => item.year === year)) {
+      entry[row.strategy] = row.total_return;
+    }
+    return entry;
+  });
+
+  return (
+    <div className="page-grid">
+      <section className="hero-panel">
+        <div>
+          <span className="eyebrow">Walk-forward trading research</span>
+          <h2>Turn model scores into trades, then let costs punish over-trading.</h2>
+          <p>{trading.assumptions.walk_forward_contract}</p>
+        </div>
+        <div className="hero-panel__aside">
+          <strong>{formatPercent(best.total_return, 1)}</strong>
+          <span>best net strategy in current test window</span>
+        </div>
+      </section>
+
+      <div className="kpi-grid">
+        <KpiCard
+          label="Buy & Hold"
+          value={formatPercent(buyHold?.total_return, 1)}
+          detail="benchmark net return"
+          tone="info"
+          icon={<TrendingUp size={18} />}
+        />
+        <KpiCard
+          label="Transaction cost"
+          value={formatPercent(trading.assumptions.transaction_cost, 2)}
+          detail="charged per position turnover"
+          tone="neutral"
+          icon={<Gauge size={18} />}
+        />
+        <KpiCard
+          label="Execution lag"
+          value={`${trading.assumptions.execution_lag_days} day`}
+          detail="signal acts next bar"
+          tone="neutral"
+          icon={<GitBranch size={18} />}
+        />
+        <KpiCard
+          label="ML cost drag"
+          value={formatPercent(Math.max(...mlRows.map((row) => row.cost_drag)), 1)}
+          detail="largest zero-cost to net gap"
+          tone="bad"
+          icon={<Activity size={18} />}
+        />
+      </div>
+
+      <Section title="Equity Curve" eyebrow="Net of lag and costs">
+        <div className="chart-block chart-block--large">
+          <ResponsiveContainer width="100%" height={340}>
+            <LineChart data={equityRows}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#25313c" />
+              <XAxis dataKey="date" tick={{ fill: "#a7b0be", fontSize: 11 }} minTickGap={34} />
+              <YAxis tickFormatter={(value) => `${Number(value).toFixed(1)}x`} />
+              <Tooltip formatter={(value: number) => `${value.toFixed(3)}x`} />
+              <Line dataKey="Buy & Hold" stroke="#f6b14a" strokeWidth={2} dot={false} />
+              <Line dataKey="XGBoost" stroke="#31d0aa" strokeWidth={2} dot={false} />
+              <Line dataKey="Random Forest" stroke="#7dd3fc" strokeWidth={2} dot={false} />
+              <Line dataKey="Ridge" stroke="#c084fc" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </Section>
+
+      <Section title="Strategy Comparison" eyebrow="Out-of-sample test with 0.15% costs">
+        <DataTable
+          rows={comparison}
+          columns={[
+            { key: "strategy", header: "Strategy", render: (row) => <strong>{row.strategy}</strong> },
+            { key: "source", header: "Source", render: (row) => row.source_model },
+            { key: "ret", header: "Total return", align: "right", render: (row) => formatPercent(row.total_return, 1) },
+            { key: "sharpe", header: "Sharpe", align: "right", render: (row) => formatNumber(row.sharpe, 2) },
+            { key: "sortino", header: "Sortino", align: "right", render: (row) => formatNumber(row.sortino, 2) },
+            { key: "mdd", header: "MDD", align: "right", render: (row) => formatPercent(row.max_drawdown, 1) },
+            { key: "trades", header: "Trades", align: "right", render: (row) => row.trades },
+            { key: "threshold", header: "Threshold", align: "right", render: (row) => row.threshold === null ? "-" : formatPercent(row.threshold, 2) },
+          ]}
+        />
+      </Section>
+
+      <Section title="Cost Sensitivity" eyebrow="Zero-cost alpha versus realistic execution">
+        <div className="chart-block">
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={costRows}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#25313c" />
+              <XAxis dataKey="strategy" tick={{ fill: "#a7b0be", fontSize: 12 }} />
+              <YAxis tickFormatter={(value) => formatPercent(Number(value), 0)} />
+              <Tooltip formatter={(value: number) => formatPercent(value, 1)} />
+              <Bar dataKey="zero" fill="#7dd3fc" name="Zero cost" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="net" fill="#31d0aa" name="With costs" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Section>
+
+      <Section title="Year-by-Year Return" eyebrow="Regime sensitivity">
+        <div className="chart-block">
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={yearlyRows}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#25313c" />
+              <XAxis dataKey="year" tick={{ fill: "#a7b0be", fontSize: 12 }} />
+              <YAxis tickFormatter={(value) => formatPercent(Number(value), 0)} />
+              <Tooltip formatter={(value: number) => formatPercent(value, 1)} />
+              <Bar dataKey="Buy & Hold" fill="#f6b14a" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="XGBoost" fill="#31d0aa" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Random Forest" fill="#7dd3fc" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Ridge" fill="#c084fc" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </Section>
+
+      <Section title="Research Contract" eyebrow="Realism checks">
+        <div className="ops-grid">
+          {[trading.assumptions.objective, trading.assumptions.reversal_cost_note, ...trading.research_notes].map((item) => (
+            <div className="ops-rule" key={item}>
+              <CheckCircle2 size={18} />
+              <span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+function ExplanationCard({
+  detail,
+  features,
+  title,
+}: {
+  detail: string;
+  features: FeatureAttribution[];
+  title: string;
+}) {
+  const maxAbs = Math.max(...features.map((feature) => feature.absValue), 0.0001);
+
+  return (
+    <article className="explain-panel">
+      <header>
+        <strong>{title}</strong>
+        <small>{detail}</small>
+      </header>
+      <div className="impact-list">
+        {features.slice(0, 8).map((feature) => (
+          <div className="impact-row" key={`${title}-${feature.feature}`}>
+            <span className="impact-name" title={feature.feature}>
+              {feature.feature}
+            </span>
+            <span className="impact-track" aria-hidden="true">
+              <i
+                className={feature.value >= 0 ? "impact-fill impact-fill--up" : "impact-fill impact-fill--down"}
+                style={{ width: `${Math.max(6, (feature.absValue / maxAbs) * 100)}%` }}
+              />
+            </span>
+            <Pill tone={feature.direction === "UP" ? "good" : "bad"}>{feature.direction}</Pill>
+            <span className="impact-value">{formatSignedPercent(feature.value, 2)}</span>
+          </div>
+        ))}
+      </div>
+    </article>
   );
 }
 
@@ -750,7 +1044,7 @@ function LeakageAudit({ data }: { data: DemoData }) {
             { key: "rank", header: "#", align: "right", render: (row) => row.rank },
             { key: "feature", header: "Feature", render: (row) => <strong>{row.feature}</strong> },
             { key: "group", header: "Group", render: (row) => row.group },
-            { key: "risk", header: "Risk", render: (row) => <Pill tone={row.risk === "low" ? "good" : "bad"}>{row.risk}</Pill> },
+            { key: "risk", header: "Risk", render: (row) => <Pill tone={riskTone(row.risk)}>{row.risk}</Pill> },
             { key: "score", header: "Mix score", align: "right", render: (row) => formatNumber(row.mix_score, 3) },
           ]}
         />
@@ -763,7 +1057,7 @@ function LeakageAudit({ data }: { data: DemoData }) {
           columns={[
             { key: "feature", header: "Feature", render: (row) => row.feature },
             { key: "group", header: "Group", render: (row) => row.group },
-            { key: "risk", header: "Risk", render: (row) => row.risk },
+            { key: "risk", header: "Risk", render: (row) => <Pill tone={riskTone(row.risk)}>{row.risk}</Pill> },
             { key: "why", header: "Rationale", render: (row) => row.why },
           ]}
         />

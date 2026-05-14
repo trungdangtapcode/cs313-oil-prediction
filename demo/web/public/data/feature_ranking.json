@@ -253,8 +253,8 @@
       "rank": 14,
       "group": "Market",
       "selected": true,
-      "risk": "medium",
-      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+      "risk": "eod_only",
+      "why": "Known after the source-day close; safe for T -> T+1 after close, but unavailable for intraday prediction before close."
     },
     {
       "feature": "gdelt_tone_lag1",
@@ -333,8 +333,8 @@
       "rank": 19,
       "group": "Market",
       "selected": false,
-      "risk": "medium",
-      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+      "risk": "eod_only",
+      "why": "Known after the source-day close; safe for T -> T+1 after close, but unavailable for intraday prediction before close."
     },
     {
       "feature": "gdelt_events_log1p",
@@ -381,8 +381,8 @@
       "rank": 22,
       "group": "Market",
       "selected": true,
-      "risk": "medium",
-      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+      "risk": "eod_only",
+      "why": "Known after the source-day close; safe for T -> T+1 after close, but unavailable for intraday prediction before close."
     },
     {
       "feature": "yield_spread",
@@ -445,8 +445,8 @@
       "rank": 26,
       "group": "Market",
       "selected": true,
-      "risk": "medium",
-      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+      "risk": "eod_only",
+      "why": "Known after the source-day close; safe for T -> T+1 after close, but unavailable for intraday prediction before close."
     },
     {
       "feature": "vix_lag1_log1p",

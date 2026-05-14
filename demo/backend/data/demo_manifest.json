@@ -26,7 +26,8 @@
     "wide_prediction_days": 840,
     "feature_rows": 27,
     "assets": 27,
-    "live_examples": 7
+    "live_examples": 7,
+    "trading_strategies": 4
   },
   "source_hashes": {
     "artifacts/improve_classification/REPORT.md": "d6dbad234d316e18bc2c1fd55a68dd4912e0b30875b33193a1accdae1d1a8b1a",

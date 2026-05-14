@@ -29,7 +29,8 @@ This should become a real deployable product, not a notebook-style dashboard.
 | Data | Static generated JSON derived from latest ML artifacts |
 | CI/CD | GitHub Actions for test, web deploy, Android build, iOS build |
 | Core mode | Offline historical demo from staged artifacts |
-| Optional mode | Future live/as-of prototype, clearly separated from validated historical results |
+| Live mode | Backend-connected historical replay and edited-field scorer |
+| Trading mode | Walk-forward strategy research with lagged execution, costs, and Buy & Hold benchmark |
 
 ## 3. Authoritative Local Findings
 
@@ -204,6 +205,7 @@ Generated web data:
 | `threshold_curve.json` | Threshold vs accuracy/F1/pos-rate for selected models |
 | `confidence_curve.json` | Confidence margin vs coverage/metrics |
 | `asset_index.json` | PNG paths and captions used by the UI |
+| `trading_strategy_summary.json` | XGB/RF/Ridge/Buy & Hold backtest with 1-day execution lag, 0.15% turnover cost, Sharpe/Sortino/MDD, and yearly returns |
 
 The web/mobile app should read only `web/public/data/*.json` and static assets.
 Model loading remains optional because saved model dependencies can vary by

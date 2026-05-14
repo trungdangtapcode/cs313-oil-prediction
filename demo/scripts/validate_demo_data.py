@@ -127,6 +127,7 @@ def main() -> None:
         "mlops_status.json",
         "live_prediction_examples.json",
         "live_prediction_reference.json",
+        "trading_strategy_summary.json",
     ]
     for name in required_files:
         web_payload = load_json(WEB_DATA / name)
@@ -153,6 +154,14 @@ def main() -> None:
     live_reference = load_json(WEB_DATA / "live_prediction_reference.json")
     if len(live_reference.get("rows", [])) != EXPECTED["n"]:
         fail("live prediction reference row count must match final test rows")
+
+    trading = load_json(WEB_DATA / "trading_strategy_summary.json")
+    if len(trading.get("comparison", [])) < 4:
+        fail("trading strategy comparison must include ML models and benchmark")
+    if trading.get("assumptions", {}).get("execution_lag_days") != 1:
+        fail("trading strategy must preserve one-day execution lag")
+    if abs(float(trading.get("assumptions", {}).get("transaction_cost", 0)) - 0.0015) > 1e-12:
+        fail("trading strategy transaction cost must be 0.15%")
 
     print(
         json.dumps(

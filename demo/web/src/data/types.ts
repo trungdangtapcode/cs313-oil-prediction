@@ -19,6 +19,7 @@ export type Manifest = {
     test_days: number;
     feature_rows: number;
     assets: number;
+    live_examples?: number;
   };
   local_control_status: {
     github_repo: string;
@@ -117,6 +118,68 @@ export type MlopsStatus = {
   metric_contract: Record<string, unknown>;
 };
 
+export type TradingStrategyRow = {
+  strategy: string;
+  id: string;
+  source_model: string;
+  threshold: number | null;
+  validation_sharpe: number | null;
+  validation_return: number | null;
+  description: string;
+  total_return: number;
+  zero_cost_return: number;
+  cost_drag: number;
+  sharpe: number | null;
+  sortino: number | null;
+  max_drawdown: number;
+  trades: number;
+  turnover: number;
+  exposure: number;
+  ridge_alpha?: number;
+  ridge_val_rmse?: number;
+  calibration_intercept?: number;
+  calibration_slope?: number;
+};
+
+export type TradingYearRow = {
+  strategy: string;
+  id: string;
+  year: string;
+  days: number;
+  total_return: number;
+  zero_cost_return: number;
+  cost_drag: number;
+  sharpe: number | null;
+  sortino: number | null;
+  max_drawdown: number;
+  trades: number;
+  turnover: number;
+  exposure: number;
+};
+
+export type TradingSummary = {
+  mode: string;
+  assumptions: {
+    objective: string;
+    walk_forward_contract: string;
+    prediction_target: string;
+    execution_lag_days: number;
+    transaction_cost: number;
+    reversal_cost_note: string;
+    benchmark: string;
+  };
+  research_notes: string[];
+  models: Array<{
+    id: string;
+    label: string;
+    source_model: string;
+    description: string;
+  }>;
+  comparison: TradingStrategyRow[];
+  yearly: TradingYearRow[];
+  equity_curve: Array<Record<string, number | string>>;
+};
+
 export type LiveExample = {
   id: string;
   label: string;
@@ -146,6 +209,32 @@ export type LiveExamplesPayload = {
   note: string;
 };
 
+export type FeatureAttribution = {
+  feature: string;
+  value: number;
+  absValue: number;
+  direction: "UP" | "DOWN";
+  featureValue: number;
+};
+
+export type LiveExplanations = {
+  note: string;
+  shap: {
+    method: string;
+    baselineProba: number;
+    predictionProba: number;
+    features: FeatureAttribution[];
+  };
+  lime: {
+    method: string;
+    localRows: number;
+    fidelityR2: number;
+    intercept: number;
+    approximationProba: number;
+    features: FeatureAttribution[];
+  };
+};
+
 export type LivePredictionResult = {
   mode: "historical_replay" | "nearest_neighbor_demo_scorer";
   model: string;
@@ -165,6 +254,7 @@ export type LivePredictionResult = {
   providedFeatures?: string[];
   imputedFeatures?: string[];
   audit: string[];
+  explanations?: LiveExplanations;
   neighbors: Array<{
     id: string;
     targetDate: string;
@@ -190,4 +280,5 @@ export type DemoData = {
   leakage: { rows: Array<Record<string, string>> };
   assets: { rows: AssetItem[] };
   mlops: MlopsStatus;
+  trading: TradingSummary;
 };

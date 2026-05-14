@@ -141,26 +141,26 @@
     {
       "feature": "oil_return",
       "group": "Market",
-      "risk": "medium",
-      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+      "risk": "eod_only",
+      "why": "Known after the source-day close; safe for T -> T+1 after close, but unavailable for intraday prediction before close."
     },
     {
       "feature": "sp500_return",
       "group": "Market",
-      "risk": "medium",
-      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+      "risk": "eod_only",
+      "why": "Known after the source-day close; safe for T -> T+1 after close, but unavailable for intraday prediction before close."
     },
     {
       "feature": "usd_return",
       "group": "Market",
-      "risk": "medium",
-      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+      "risk": "eod_only",
+      "why": "Known after the source-day close; safe for T -> T+1 after close, but unavailable for intraday prediction before close."
     },
     {
       "feature": "vix_return_slog1p",
       "group": "Market",
-      "risk": "medium",
-      "why": "Same-day return feature; safe only for end-of-day T -> T+1 setup."
+      "risk": "eod_only",
+      "why": "Known after the source-day close; safe for T -> T+1 after close, but unavailable for intraday prediction before close."
     }
   ]
 }

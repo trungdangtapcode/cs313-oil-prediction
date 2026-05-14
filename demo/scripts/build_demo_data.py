@@ -390,6 +390,501 @@ def build_live_prediction_payloads(
     return examples_payload, reference_payload
 
 
+def normalize_leakage_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    normalized = []
+    for row in rows:
+        next_row = dict(row)
+        why = str(next_row.get("why") or "")
+        if next_row.get("risk") == "medium" and "end-of-day T -> T+1" in why:
+            next_row["risk"] = "eod_only"
+            next_row["why"] = (
+                "Known after the source-day close; safe for T -> T+1 after close, "
+                "but unavailable for intraday prediction before close."
+            )
+        normalized.append(next_row)
+    return normalized
+
+
+def solve_linear_system(matrix: list[list[float]], vector: list[float]) -> list[float] | None:
+    n = len(vector)
+    augmented = [row[:] + [vector[idx]] for idx, row in enumerate(matrix)]
+
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda row: abs(augmented[row][col]))
+        if abs(augmented[pivot][col]) < 1e-12:
+            return None
+        augmented[col], augmented[pivot] = augmented[pivot], augmented[col]
+        pivot_value = augmented[col][col]
+        for j in range(col, n + 1):
+            augmented[col][j] /= pivot_value
+        for row in range(n):
+            if row == col:
+                continue
+            factor = augmented[row][col]
+            for j in range(col, n + 1):
+                augmented[row][j] -= factor * augmented[col][j]
+
+    return [row[n] for row in augmented]
+
+
+def fit_simple_linear(xs: list[float], ys: list[float]) -> tuple[float, float]:
+    if not xs or not ys or len(xs) != len(ys):
+        return (0.0, 0.0)
+    avg_x = mean(xs)
+    avg_y = mean(ys)
+    var_x = sum((x - avg_x) ** 2 for x in xs)
+    if var_x <= 1e-12:
+        return (avg_y, 0.0)
+    cov = sum((x - avg_x) * (y - avg_y) for x, y in zip(xs, ys))
+    slope = cov / var_x
+    return (avg_y - slope * avg_x, slope)
+
+
+def fit_ridge_model(
+    train_rows: list[dict[str, Any]],
+    val_rows: list[dict[str, Any]],
+    feature_columns: list[str],
+) -> dict[str, Any]:
+    means: dict[str, float] = {}
+    stds: dict[str, float] = {}
+    for feature in feature_columns:
+        values = [float(row[feature]) for row in train_rows if isinstance(row.get(feature), (int, float))]
+        avg = mean(values)
+        variance = mean([(value - avg) ** 2 for value in values]) if len(values) > 1 else 0.0
+        means[feature] = avg
+        stds[feature] = math.sqrt(variance) or 1.0
+
+    def vector(row: dict[str, Any]) -> list[float]:
+        return [1.0] + [
+            (float(row.get(feature, means[feature])) - means[feature]) / stds[feature]
+            for feature in feature_columns
+        ]
+
+    x_train = [vector(row) for row in train_rows]
+    y_train = [float(row["oil_return_fwd1"]) for row in train_rows]
+    x_val = [vector(row) for row in val_rows]
+    y_val = [float(row["oil_return_fwd1"]) for row in val_rows]
+    p = len(feature_columns) + 1
+
+    def fit_alpha(alpha: float) -> list[float] | None:
+        xtx = [[0.0 for _ in range(p)] for _ in range(p)]
+        xty = [0.0 for _ in range(p)]
+        for x, y in zip(x_train, y_train):
+            for i in range(p):
+                xty[i] += x[i] * y
+                for j in range(p):
+                    xtx[i][j] += x[i] * x[j]
+        for i in range(1, p):
+            xtx[i][i] += alpha
+        return solve_linear_system(xtx, xty)
+
+    def predict(beta: list[float], row: dict[str, Any]) -> float:
+        x = vector(row)
+        return sum(coef * value for coef, value in zip(beta, x))
+
+    best: dict[str, Any] | None = None
+    for alpha in [0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]:
+        beta = fit_alpha(alpha)
+        if beta is None:
+            continue
+        rmse = math.sqrt(mean([(predict(beta, row) - y) ** 2 for row, y in zip(val_rows, y_val)]))
+        if best is None or rmse < best["rmse"]:
+            best = {"alpha": alpha, "beta": beta, "rmse": rmse}
+    if best is None:
+        raise RuntimeError("Could not fit ridge model for trading demo")
+
+    return {
+        "alpha": best["alpha"],
+        "rmse": best["rmse"],
+        "feature_columns": feature_columns,
+        "means": means,
+        "stds": stds,
+        "beta": best["beta"],
+        "predict": lambda row: predict(best["beta"], row),
+    }
+
+
+def strategy_metrics(returns: list[float]) -> dict[str, Any]:
+    if not returns:
+        return {
+            "total_return": 0.0,
+            "sharpe": None,
+            "sortino": None,
+            "max_drawdown": 0.0,
+        }
+
+    equity = 1.0
+    curve = []
+    for daily_return in returns:
+        equity *= max(0.0, 1 + daily_return)
+        curve.append(equity)
+    avg = mean(returns)
+    variance = mean([(value - avg) ** 2 for value in returns]) if len(returns) > 1 else 0.0
+    std = math.sqrt(variance)
+    downside = [min(0.0, value) for value in returns]
+    downside_std = math.sqrt(mean([value * value for value in downside])) if downside else 0.0
+
+    peak = curve[0] if curve else 1.0
+    max_drawdown = 0.0
+    for value in curve:
+        peak = max(peak, value)
+        if peak > 0:
+            max_drawdown = min(max_drawdown, value / peak - 1)
+
+    return {
+        "total_return": equity - 1,
+        "sharpe": (avg / std * math.sqrt(252)) if std > 0 else None,
+        "sortino": (avg / downside_std * math.sqrt(252)) if downside_std > 0 else None,
+        "max_drawdown": max_drawdown,
+    }
+
+
+def simulate_strategy(
+    rows: list[dict[str, Any]],
+    threshold: float,
+    cost_rate: float,
+    lag_days: int = 1,
+) -> dict[str, Any]:
+    raw_signals = []
+    for row in rows:
+        score = float(row["predicted_return"])
+        if score > threshold:
+            raw_signals.append(1)
+        elif score < -threshold:
+            raw_signals.append(-1)
+        else:
+            raw_signals.append(0)
+
+    daily = []
+    prev_position = 0
+    for idx, row in enumerate(rows):
+        position = raw_signals[idx - lag_days] if idx >= lag_days else 0
+        turnover = abs(position - prev_position)
+        gross_return = position * float(row["actual_return"])
+        cost = turnover * cost_rate
+        daily.append(
+            {
+                "date": row["date"],
+                "target_date": row["target_date"],
+                "year": str(row["target_date"])[:4],
+                "predicted_return": row["predicted_return"],
+                "actual_return": row["actual_return"],
+                "raw_signal": raw_signals[idx],
+                "position": position,
+                "turnover": turnover,
+                "gross_return": gross_return,
+                "cost": cost,
+                "net_return": gross_return - cost,
+                "zero_cost_return": gross_return,
+            }
+        )
+        prev_position = position
+
+    net_returns = [row["net_return"] for row in daily]
+    zero_cost_returns = [row["zero_cost_return"] for row in daily]
+    net_metrics = strategy_metrics(net_returns)
+    zero_metrics = strategy_metrics(zero_cost_returns)
+
+    equity = 1.0
+    zero_equity = 1.0
+    for row in daily:
+        equity *= max(0.0, 1 + row["net_return"])
+        zero_equity *= max(0.0, 1 + row["zero_cost_return"])
+        row["equity"] = equity
+        row["zero_cost_equity"] = zero_equity
+
+    return {
+        "daily": daily,
+        "metrics": {
+            **net_metrics,
+            "zero_cost_return": zero_metrics["total_return"],
+            "cost_drag": zero_metrics["total_return"] - net_metrics["total_return"],
+            "trades": sum(1 for row in daily if row["turnover"] > 0),
+            "turnover": sum(row["turnover"] for row in daily),
+            "exposure": mean([abs(row["position"]) for row in daily]) if daily else 0.0,
+        },
+    }
+
+
+def optimize_trading_threshold(rows: list[dict[str, Any]], cost_rate: float) -> dict[str, Any]:
+    abs_scores = sorted(abs(float(row["predicted_return"])) for row in rows)
+    if not abs_scores:
+        return {"threshold": 0.0, "metrics": strategy_metrics([])}
+
+    candidates = {0.0}
+    for idx in range(5, 96, 5):
+        candidates.add(abs_scores[min(len(abs_scores) - 1, int(len(abs_scores) * idx / 100))])
+    candidates.update([0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02])
+
+    best: dict[str, Any] | None = None
+    for threshold in sorted(candidates):
+        result = simulate_strategy(rows, threshold, cost_rate)
+        metrics = result["metrics"]
+        sharpe = metrics["sharpe"] if metrics["sharpe"] is not None else -999.0
+        key = (sharpe, metrics["total_return"], -metrics["turnover"])
+        if best is None or key > best["key"]:
+            best = {"threshold": threshold, "metrics": metrics, "key": key}
+    if best is None:
+        return {"threshold": 0.0, "metrics": strategy_metrics([])}
+    return {"threshold": best["threshold"], "metrics": best["metrics"]}
+
+
+def buy_hold_strategy(rows: list[dict[str, Any]], cost_rate: float) -> dict[str, Any]:
+    daily = []
+    equity = 1.0
+    zero_equity = 1.0
+    for idx, row in enumerate(rows):
+        cost = cost_rate if idx == 0 else 0.0
+        net_return = float(row["actual_return"]) - cost
+        zero_cost_return = float(row["actual_return"])
+        equity *= max(0.0, 1 + net_return)
+        zero_equity *= max(0.0, 1 + zero_cost_return)
+        daily.append(
+            {
+                "date": row["date"],
+                "target_date": row["target_date"],
+                "year": str(row["target_date"])[:4],
+                "position": 1,
+                "turnover": 1 if idx == 0 else 0,
+                "actual_return": row["actual_return"],
+                "net_return": net_return,
+                "zero_cost_return": zero_cost_return,
+                "equity": equity,
+                "zero_cost_equity": zero_equity,
+            }
+        )
+    net_metrics = strategy_metrics([row["net_return"] for row in daily])
+    zero_metrics = strategy_metrics([row["zero_cost_return"] for row in daily])
+    return {
+        "daily": daily,
+        "metrics": {
+            **net_metrics,
+            "zero_cost_return": zero_metrics["total_return"],
+            "cost_drag": zero_metrics["total_return"] - net_metrics["total_return"],
+            "trades": 1 if daily else 0,
+            "turnover": 1 if daily else 0,
+            "exposure": 1.0 if daily else 0.0,
+        },
+    }
+
+
+def build_trading_strategy_payload() -> dict[str, Any]:
+    dataset_rows = read_csv(DATASET_DIR / "dataset_final_noleak_step5c_scaler.csv")
+    if not dataset_rows:
+        raise RuntimeError("No rows found for trading demo")
+
+    excluded = {"date", "oil_return_fwd1", "oil_return_fwd1_date"}
+    feature_columns = [key for key in dataset_rows[0].keys() if key not in excluded]
+    by_date = {str(row["date"]): row for row in dataset_rows}
+
+    train_rows = [row for row in dataset_rows if str(row["oil_return_fwd1_date"]) < "2022-01-01"]
+    val_rows_dataset = [
+        row for row in dataset_rows
+        if "2022-01-01" <= str(row["oil_return_fwd1_date"]) < "2023-01-01"
+    ]
+    test_rows_dataset = [row for row in dataset_rows if str(row["oil_return_fwd1_date"]) >= "2023-01-01"]
+
+    val_predictions = read_csv(RESULTS / "ml_val_predictions.csv")
+    test_predictions = read_csv(RESULTS / "ml_test_predictions.csv")
+
+    def prediction_rows(rows: list[dict[str, Any]], model: str) -> list[dict[str, Any]]:
+        return sorted(
+            [row for row in rows if row.get("Model") == model and row.get("Split") in {"val", "test"}],
+            key=lambda row: str(row["date"]),
+        )
+
+    def attach_returns(pred_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        attached = []
+        for pred in pred_rows:
+            source = by_date.get(str(pred["date"]))
+            if not source:
+                continue
+            attached.append(
+                {
+                    "date": str(pred["date"]),
+                    "target_date": str(source["oil_return_fwd1_date"]),
+                    "actual_return": float(source["oil_return_fwd1"]),
+                    "proba_up": float(pred["proba_up"]),
+                }
+            )
+        return attached
+
+    cost_rate = 0.0015
+    model_specs = [
+        {
+            "id": "xgb",
+            "label": "XGBoost",
+            "source_model": "XGB_exp100",
+            "description": "XGB trading candidate selected from the staged XGB family by validation Sharpe, then converted to a signed expected-return score.",
+        },
+        {
+            "id": "rf",
+            "label": "Random Forest",
+            "source_model": "BASE_RandomForest",
+            "description": "Baseline RandomForest classification artifact converted to a signed expected-return score using validation calibration.",
+        },
+    ]
+
+    strategies: dict[str, dict[str, Any]] = {}
+    comparison = []
+    yearly = []
+
+    for spec in model_specs:
+        val_rows = attach_returns(prediction_rows(val_predictions, spec["source_model"]))
+        test_rows = attach_returns(prediction_rows(test_predictions, spec["source_model"]))
+        xs = [row["proba_up"] * 2 - 1 for row in val_rows]
+        ys = [row["actual_return"] for row in val_rows]
+        intercept, slope = fit_simple_linear(xs, ys)
+        for row in val_rows + test_rows:
+            row["predicted_return"] = intercept + slope * (row["proba_up"] * 2 - 1)
+
+        threshold_result = optimize_trading_threshold(val_rows, cost_rate)
+        test_result = simulate_strategy(test_rows, threshold_result["threshold"], cost_rate)
+        strategies[spec["id"]] = {"spec": spec, **test_result}
+        comparison.append(
+            {
+                "strategy": spec["label"],
+                "id": spec["id"],
+                "source_model": spec["source_model"],
+                "threshold": threshold_result["threshold"],
+                "validation_sharpe": threshold_result["metrics"]["sharpe"],
+                "validation_return": threshold_result["metrics"]["total_return"],
+                "calibration_intercept": intercept,
+                "calibration_slope": slope,
+                "description": spec["description"],
+                **test_result["metrics"],
+            }
+        )
+
+    ridge = fit_ridge_model(train_rows, val_rows_dataset, feature_columns)
+
+    def ridge_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [
+            {
+                "date": str(row["date"]),
+                "target_date": str(row["oil_return_fwd1_date"]),
+                "actual_return": float(row["oil_return_fwd1"]),
+                "predicted_return": ridge["predict"](row),
+            }
+            for row in rows
+        ]
+
+    ridge_val = ridge_rows(val_rows_dataset)
+    ridge_test = ridge_rows(test_rows_dataset)
+    ridge_threshold = optimize_trading_threshold(ridge_val, cost_rate)
+    ridge_result = simulate_strategy(ridge_test, ridge_threshold["threshold"], cost_rate)
+    strategies["ridge"] = {
+        "spec": {
+            "id": "ridge",
+            "label": "Ridge",
+            "source_model": "pure_python_ridge_regression",
+            "description": "Ridge regression fit on train rows to predict next-day oil return directly.",
+        },
+        **ridge_result,
+    }
+    comparison.append(
+        {
+            "strategy": "Ridge",
+            "id": "ridge",
+            "source_model": "pure_python_ridge_regression",
+            "threshold": ridge_threshold["threshold"],
+            "validation_sharpe": ridge_threshold["metrics"]["sharpe"],
+            "validation_return": ridge_threshold["metrics"]["total_return"],
+            "ridge_alpha": ridge["alpha"],
+            "ridge_val_rmse": ridge["rmse"],
+            "description": "Ridge regression fit on train rows to predict next-day oil return directly.",
+            **ridge_result["metrics"],
+        }
+    )
+
+    buy_hold_rows = [
+        {
+            "date": str(row["date"]),
+            "target_date": str(row["oil_return_fwd1_date"]),
+            "actual_return": float(row["oil_return_fwd1"]),
+        }
+        for row in test_rows_dataset
+    ]
+    buy_hold = buy_hold_strategy(buy_hold_rows, cost_rate)
+    strategies["buy_hold"] = {
+        "spec": {
+            "id": "buy_hold",
+            "label": "Buy & Hold",
+            "source_model": "benchmark",
+            "description": "Long oil exposure throughout the test period with one entry cost.",
+        },
+        **buy_hold,
+    }
+    comparison.append(
+        {
+            "strategy": "Buy & Hold",
+            "id": "buy_hold",
+            "source_model": "benchmark",
+            "threshold": None,
+            "validation_sharpe": None,
+            "validation_return": None,
+            "description": "Long oil exposure throughout the test period with one entry cost.",
+            **buy_hold["metrics"],
+        }
+    )
+
+    for strategy_id, strategy in strategies.items():
+        by_year: defaultdict[str, list[dict[str, Any]]] = defaultdict(list)
+        for row in strategy["daily"]:
+            by_year[str(row["target_date"])[:4]].append(row)
+        for year, rows in sorted(by_year.items()):
+            net_metrics = strategy_metrics([row["net_return"] for row in rows])
+            zero_metrics = strategy_metrics([row["zero_cost_return"] for row in rows])
+            yearly.append(
+                {
+                    "strategy": strategy["spec"]["label"],
+                    "id": strategy_id,
+                    "year": year,
+                    "days": len(rows),
+                    **net_metrics,
+                    "zero_cost_return": zero_metrics["total_return"],
+                    "cost_drag": zero_metrics["total_return"] - net_metrics["total_return"],
+                    "trades": sum(1 for row in rows if row["turnover"] > 0),
+                    "turnover": sum(row["turnover"] for row in rows),
+                    "exposure": mean([abs(row["position"]) for row in rows]) if rows else 0.0,
+                }
+            )
+
+    equity_curve = []
+    for idx, row in enumerate(buy_hold["daily"]):
+        point = {"date": row["target_date"]}
+        for strategy_id, strategy in strategies.items():
+            if idx < len(strategy["daily"]):
+                point[strategy_id] = strategy["daily"][idx]["equity"]
+        equity_curve.append(point)
+
+    return {
+        "mode": "walk_forward_trading_research_demo",
+        "assumptions": {
+            "objective": "Compare ML trading strategies against buy-and-hold on the current oil next-day return test window.",
+            "walk_forward_contract": "Models are trained before validation/test in the staged ML run; trading thresholds are selected on 2022 validation and frozen for 2023+ test.",
+            "prediction_target": "oil_return_fwd1 next trading-day return",
+            "execution_lag_days": 1,
+            "transaction_cost": cost_rate,
+            "reversal_cost_note": "Position changes are charged by turnover; +1 to -1 costs 2 * transaction_cost.",
+            "benchmark": "Buy & Hold is long oil over the same target-date test window.",
+        },
+        "research_notes": [
+            "Validation-only threshold selection reduces but does not eliminate backtest overfitting risk.",
+            "One-day execution lag prevents same-bar signal execution.",
+            "Cost sensitivity is shown because turnover can erase small classification edges.",
+        ],
+        "models": [strategy["spec"] for strategy in strategies.values()],
+        "comparison": sorted(comparison, key=lambda row: row["total_return"], reverse=True),
+        "yearly": yearly,
+        "equity_curve": equity_curve,
+        "sample_days": {
+            strategy_id: strategy["daily"][:8]
+            for strategy_id, strategy in strategies.items()
+        },
+    }
+
+
 def build() -> None:
     ensure_dirs()
 
@@ -419,7 +914,8 @@ def build() -> None:
             best_by_experiment[experiment] = row
 
     leakage_rows_raw = read_csv(EDA_TABLES / "step5_upgraded_leakage_risk_assessment.csv")
-    leakage_by_feature = {str(row["feature"]): row for row in leakage_rows_raw if row.get("feature")}
+    leakage_rows = normalize_leakage_rows(leakage_rows_raw)
+    leakage_by_feature = {str(row["feature"]): row for row in leakage_rows if row.get("feature")}
 
     selected_features_payload = read_json(RESULTS / "selected_features.json")
     selected_features = set(selected_features_payload.get("selected_features", []))
@@ -493,6 +989,7 @@ def build() -> None:
         )
 
     live_examples, live_reference = build_live_prediction_payloads(decision_log)
+    trading_strategy = build_trading_strategy_payload()
 
     threshold_curve = []
     for step in range(35, 66, 1):
@@ -555,6 +1052,7 @@ def build() -> None:
             "feature_rows": len(feature_rows),
             "assets": len(asset_index),
             "live_examples": len(live_examples["rows"]),
+            "trading_strategies": len(trading_strategy["comparison"]),
         },
         "source_hashes": source_hashes,
         "local_control_status": {
@@ -604,11 +1102,12 @@ def build() -> None:
     write_json("threshold_curve.json", {"model": "ENS_FINAL3", "rows": threshold_curve})
     write_json("confidence_curve.json", {"model": "ENS_FINAL3", "rows": confidence_curve})
     write_json("dataset_evolution.json", {"rows": dataset_evolution})
-    write_json("leakage_audit_table.json", {"rows": leakage_rows_raw})
+    write_json("leakage_audit_table.json", {"rows": leakage_rows})
     write_json("asset_index.json", {"rows": asset_index})
     write_json("mlops_status.json", mlops_status)
     write_json("live_prediction_examples.json", live_examples)
     write_json("live_prediction_reference.json", live_reference)
+    write_json("trading_strategy_summary.json", trading_strategy)
 
     print(
         json.dumps(

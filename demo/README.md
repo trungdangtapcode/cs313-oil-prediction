@@ -64,6 +64,14 @@ GCP deploy identity setup: demo/scripts/setup_gcp_github_actions.sh
 Deployment runbook: demo/DEPLOYMENT.md
 ```
 
+The generated product now includes:
+
+```text
+Live prediction examples: backend-connected replay and edited-field scorer
+Feature explanations: global ranking plus LIME/SHAP-style local attributions
+Trading research: XGB, Random Forest, Ridge, and Buy & Hold with lag, costs, and drawdown metrics
+```
+
 Local Android APK output after `npm run android:debug`:
 
 ```text

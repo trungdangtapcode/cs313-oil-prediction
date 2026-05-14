@@ -64,4 +64,15 @@ describe("oil signal mine backend", () => {
     expect(response.body.neighbors.length).toBeGreaterThan(0);
     expect(response.body.featureCompleteness).toBe(1);
   });
+
+  it("serves the trading strategy research summary", async () => {
+    const response = await request(app).get("/api/trading/summary").expect(200);
+
+    expect(response.body.assumptions.execution_lag_days).toBe(1);
+    expect(response.body.assumptions.transaction_cost).toBe(0.0015);
+    expect(response.body.comparison.map((row: { id: string }) => row.id)).toEqual(
+      expect.arrayContaining(["xgb", "rf", "ridge", "buy_hold"]),
+    );
+    expect(response.body.equity_curve.length).toBe(840);
+  });
 });

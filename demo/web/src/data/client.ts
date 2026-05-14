@@ -13,6 +13,7 @@ const dataFiles = {
   leakage: "leakage_audit_table.json",
   assets: "asset_index.json",
   mlops: "mlops_status.json",
+  trading: "trading_strategy_summary.json",
 } as const;
 
 async function fetchJson<T>(file: string): Promise<T> {
