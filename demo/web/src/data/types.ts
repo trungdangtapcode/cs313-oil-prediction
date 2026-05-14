@@ -309,6 +309,20 @@ export type LivePredictionResult = {
   }>;
 };
 
+export type ApkInfo = {
+  available: boolean;
+  app_name: string;
+  artifact_name: string;
+  download_path: string;
+  version: string;
+  commit: string | null;
+  built_at: string | null;
+  size_bytes: number | null;
+  sha256: string | null;
+  source: string;
+  note: string;
+};
+
 export type DemoData = {
   manifest: Manifest;
   leaderboard: { rows: LeaderboardRow[]; best_by_experiment: LeaderboardRow[] };

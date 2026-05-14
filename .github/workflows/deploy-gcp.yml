@@ -48,6 +48,14 @@ jobs:
         with:
           node-version: "22"
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - uses: android-actions/setup-android@v3
+
       - name: Build and validate shared ML data
         run: |
           python3 demo/scripts/build_demo_data.py
@@ -111,6 +119,51 @@ jobs:
           echo "Backend URL: $BACKEND_URL"
           echo "::notice title=Backend URL::$BACKEND_URL"
 
+      - name: Build downloadable Android APK
+        run: |
+          cd demo/web
+          npm ci
+          VITE_API_BASE_URL="$BACKEND_URL" npm run build
+          npx cap sync android
+          cd android
+          ./gradlew assembleDebug
+          cd ..
+
+          mkdir -p public/downloads
+          APK_SOURCE="android/app/build/outputs/apk/debug/app-debug.apk"
+          APK_TARGET="public/downloads/oil-signal-mine-latest.apk"
+          cp "$APK_SOURCE" "$APK_TARGET"
+
+          APK_SIZE="$(stat -c%s "$APK_TARGET")"
+          APK_SHA256="$(sha256sum "$APK_TARGET" | cut -d' ' -f1)"
+          APK_BUILT_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+          cat > public/downloads/apk.json <<JSON
+          {
+            "available": true,
+            "app_name": "Oil Direction Signal Mine",
+            "artifact_name": "oil-signal-mine-latest.apk",
+            "download_path": "/downloads/oil-signal-mine-latest.apk",
+            "version": "debug",
+            "commit": "$GITHUB_SHA",
+            "built_at": "$APK_BUILT_AT",
+            "size_bytes": $APK_SIZE,
+            "sha256": "$APK_SHA256",
+            "source": "deploy-gcp",
+            "note": "Debug APK built by GitHub Actions and hosted by the frontend service."
+          }
+          JSON
+
+          echo "APK_DOWNLOAD_PATH=/downloads/oil-signal-mine-latest.apk" >> "$GITHUB_ENV"
+          echo "APK_SIZE=$APK_SIZE" >> "$GITHUB_ENV"
+          echo "APK_SHA256=$APK_SHA256" >> "$GITHUB_ENV"
+
+      - name: Upload deploy APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: oil-signal-mine-deploy-apk
+          path: demo/web/public/downloads/oil-signal-mine-latest.apk
+
       - name: Build and push frontend image
         run: |
           WEB_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${WEB_SERVICE}:${GITHUB_SHA}"
@@ -133,6 +186,7 @@ jobs:
           echo "WEB_URL=$WEB_URL" >> "$GITHUB_ENV"
           echo "Web URL: $WEB_URL"
           echo "::notice title=Frontend URL::$WEB_URL"
+          echo "::notice title=APK Download URL::$WEB_URL$APK_DOWNLOAD_PATH"
 
       - name: Deployment summary
         run: |
@@ -145,8 +199,13 @@ jobs:
             echo "| Backend API | [$BACKEND_URL]($BACKEND_URL) |"
             echo "| Backend health | [$BACKEND_URL/health]($BACKEND_URL/health) |"
             echo "| Trading thresholds | [$BACKEND_URL/api/trading/thresholds?model=xgb]($BACKEND_URL/api/trading/thresholds?model=xgb) |"
+            echo "| Android APK | [$WEB_URL$APK_DOWNLOAD_PATH]($WEB_URL$APK_DOWNLOAD_PATH) |"
             echo ""
             echo "Frontend is built with this backend API URL:"
             echo ""
             echo "\`$BACKEND_URL\`"
+            echo ""
+            echo "APK SHA256:"
+            echo ""
+            echo "\`$APK_SHA256\`"
           } >> "$GITHUB_STEP_SUMMARY"

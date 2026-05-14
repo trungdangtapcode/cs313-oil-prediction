@@ -7,6 +7,11 @@ test("renders the mission dashboard from generated ML data", async ({ page }) =>
   await expect(page.getByText("ENS_FINAL3").first()).toBeVisible();
   await expect(page.getByText("54.8%")).toBeVisible();
   await expect(page.getByText("Cloud Run live")).toBeVisible();
+  await expect(page.getByText("Android APK")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download APK" })).toHaveAttribute(
+    "href",
+    /\/downloads\/oil-signal-mine-latest\.apk$/,
+  );
 });
 
 test("mobile view exposes the decision microscope tab", async ({ page }) => {

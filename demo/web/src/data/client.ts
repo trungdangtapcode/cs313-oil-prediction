@@ -1,4 +1,4 @@
-import type { DemoData, LiveExamplesPayload, LivePredictionResult } from "./types";
+import type { ApkInfo, DemoData, LiveExamplesPayload, LivePredictionResult } from "./types";
 
 const dataFiles = {
   manifest: "demo_manifest.json",
@@ -53,6 +53,14 @@ export async function loadLiveExamples(): Promise<LiveExamplesPayload> {
     throw new Error(`Live examples failed: ${response.status}`);
   }
   return response.json() as Promise<LiveExamplesPayload>;
+}
+
+export async function loadApkInfo(): Promise<ApkInfo | null> {
+  const response = await fetch("/downloads/apk.json", { cache: "no-store" });
+  if (!response.ok) {
+    return null;
+  }
+  return response.json() as Promise<ApkInfo>;
 }
 
 export async function runLivePrediction(payload: {

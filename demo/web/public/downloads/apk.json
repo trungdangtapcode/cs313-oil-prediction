@@ -1,0 +1,13 @@
+{
+  "available": false,
+  "app_name": "Oil Direction Signal Mine",
+  "artifact_name": "oil-signal-mine-latest.apk",
+  "download_path": "/downloads/oil-signal-mine-latest.apk",
+  "version": "debug",
+  "commit": null,
+  "built_at": null,
+  "size_bytes": null,
+  "sha256": null,
+  "source": "deploy",
+  "note": "The deploy workflow overwrites this file after building the latest Capacitor APK."
+}
