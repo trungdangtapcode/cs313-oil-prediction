@@ -9,6 +9,7 @@ import {
   GitBranch,
   LineChart as LineChartIcon,
   Microscope,
+  PlayCircle,
   Rocket,
   ShieldCheck,
   Smartphone,
@@ -35,8 +36,8 @@ import { KpiCard } from "./components/KpiCard";
 import { ProbabilityStrip } from "./components/ProbabilityStrip";
 import { Section } from "./components/Section";
 import { formatNumber, formatPercent, metricTone, compactHash } from "./data/format";
-import { loadApiHealth, loadDemoData } from "./data/client";
-import type { DemoData, LeaderboardRow, PredictionDay } from "./data/types";
+import { loadApiHealth, loadDemoData, loadLiveExamples, runLivePrediction } from "./data/client";
+import type { DemoData, LeaderboardRow, LiveExample, LiveExamplesPayload, LivePredictionResult, PredictionDay } from "./data/types";
 import "./styles/app.css";
 
 const navItems = [
@@ -44,6 +45,7 @@ const navItems = [
   { id: "data", label: "Data Mine", icon: Database },
   { id: "models", label: "Model Arena", icon: Trophy },
   { id: "decision", label: "Microscope", icon: Microscope },
+  { id: "live", label: "Live Demo", icon: PlayCircle },
   { id: "confidence", label: "Confidence", icon: Gauge },
   { id: "audit", label: "Audit", icon: ShieldCheck },
   { id: "ops", label: "DevOps", icon: Rocket },
@@ -132,6 +134,7 @@ function App() {
     data: <DataMine data={data} />,
     models: <ModelArena data={data} />,
     decision: <DecisionMicroscope data={data} />,
+    live: <LivePredictionDemo />,
     confidence: <ConfidenceLab data={data} />,
     audit: <LeakageAudit data={data} />,
     ops: <DevOpsMlOps data={data} apiHealth={apiHealth} />,
@@ -491,6 +494,193 @@ function DecisionMicroscope({ data }: { data: DemoData }) {
             </AreaChart>
           </ResponsiveContainer>
         </div>
+      </Section>
+    </div>
+  );
+}
+
+function LivePredictionDemo() {
+  const [examples, setExamples] = useState<LiveExamplesPayload | null>(null);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [features, setFeatures] = useState<Record<string, number>>({});
+  const [result, setResult] = useState<LivePredictionResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    loadLiveExamples()
+      .then((payload) => {
+        if (!mounted) {
+          return;
+        }
+        setExamples(payload);
+        const first = payload.rows[0];
+        if (first) {
+          setSelectedId(first.id);
+          setFeatures(first.features);
+        }
+      })
+      .catch((loadError: Error) => {
+        if (mounted) {
+          setError(loadError.message);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const selected = examples?.rows.find((row) => row.id === selectedId) ?? examples?.rows[0];
+  const visibleFeatures = examples?.feature_columns ?? [];
+
+  function selectExample(example: LiveExample) {
+    setSelectedId(example.id);
+    setFeatures(example.features);
+    setResult(null);
+    setError(null);
+  }
+
+  async function submit(mode: "replay" | "score") {
+    if (!selected) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const payload =
+        mode === "replay"
+          ? { exampleId: selected.id }
+          : { sourceExampleId: selected.id, features };
+      setResult(await runLivePrediction(payload));
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Live prediction failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!examples) {
+    return (
+      <div className="page-grid">
+        <Section title="Live Demo Loading" eyebrow="Backend API">
+          <p className="muted-copy">{error ?? "Loading selectable prediction examples from the backend."}</p>
+        </Section>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-grid">
+      <Section title="As-Of Prediction Demo" eyebrow="Backend-connected">
+        <div className="live-layout">
+          <div className="live-picker">
+            <label htmlFor="live-example">Example row</label>
+            <select
+              id="live-example"
+              onChange={(event) => {
+                const next = examples.rows.find((row) => row.id === event.target.value);
+                if (next) {
+                  selectExample(next);
+                }
+              }}
+              value={selected?.id ?? ""}
+            >
+              {examples.rows.map((example) => (
+                <option key={example.id} value={example.id}>
+                  {example.label} - {example.target_date}
+                </option>
+              ))}
+            </select>
+            {selected ? (
+              <div className="live-example-card">
+                <strong>{selected.label}</strong>
+                <span>{selected.description}</span>
+                <small>
+                  Source {selected.source_date}, target {selected.target_date}, historical prediction{" "}
+                  {formatPercent(selected.prediction.proba_up, 1)} UP
+                </small>
+              </div>
+            ) : null}
+            <div className="live-actions">
+              <button disabled={busy} onClick={() => submit("replay")} type="button">
+                Replay exact example
+              </button>
+              <button disabled={busy} onClick={() => submit("score")} type="button">
+                Score edited fields
+              </button>
+            </div>
+            {error ? <p className="form-error">{error}</p> : null}
+          </div>
+
+          {result ? (
+            <div className="live-result">
+              <span className="eyebrow">{result.mode.replace(/_/g, " ")}</span>
+              <strong>{formatPercent(result.probaUp, 1)} UP</strong>
+              <Pill tone={result.predLabel === "UP" ? "good" : "bad"}>{result.predLabel}</Pill>
+              <small>Margin {formatPercent(result.confidenceMargin, 1)}</small>
+              {typeof result.featureCompleteness === "number" ? (
+                <small>Completeness {formatPercent(result.featureCompleteness, 0)}</small>
+              ) : null}
+            </div>
+          ) : (
+            <div className="live-result live-result--empty">
+              <PlayCircle size={24} />
+              <span>Select an example, then replay it or edit fields and score.</span>
+            </div>
+          )}
+        </div>
+      </Section>
+
+      <Section title="Editable Feature Row" eyebrow="Examples prefill all fields">
+        <div className="feature-input-grid">
+          {visibleFeatures.map((feature) => (
+            <label key={feature}>
+              <span>{feature}</span>
+              <input
+                inputMode="decimal"
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  setFeatures((current) => ({
+                    ...current,
+                    [feature]: Number.isFinite(value) ? value : 0,
+                  }));
+                }}
+                step="0.001"
+                type="number"
+                value={Number(features[feature] ?? 0).toFixed(4)}
+              />
+            </label>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Prediction Audit" eyebrow="What the backend did">
+        {result ? (
+          <div className="audit-stack">
+            {result.audit.map((item) => (
+              <div className="ops-rule" key={item}>
+                <CheckCircle2 size={18} />
+                <span>{item}</span>
+              </div>
+            ))}
+            <DataTable
+              compact
+              rows={result.neighbors.slice(0, 5)}
+              columns={[
+                { key: "date", header: "Neighbor", render: (row) => row.targetDate },
+                { key: "distance", header: "Distance", align: "right", render: (row) => formatNumber(row.distance, 3) },
+                { key: "proba", header: "UP prob", align: "right", render: (row) => formatPercent(row.probaUp, 1) },
+                { key: "actual", header: "Actual", render: (row) => row.actualLabel },
+              ]}
+            />
+          </div>
+        ) : (
+          <p className="muted-copy">
+            Exact replay uses the stored ENS_FINAL3 prediction. Edited fields use nearest historical analogs until full
+            runtime model inference is added.
+          </p>
+        )}
       </Section>
     </div>
   );

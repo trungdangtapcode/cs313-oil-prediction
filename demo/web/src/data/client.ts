@@ -1,4 +1,4 @@
-import type { DemoData } from "./types";
+import type { DemoData, LiveExamplesPayload, LivePredictionResult } from "./types";
 
 const dataFiles = {
   manifest: "demo_manifest.json",
@@ -23,6 +23,14 @@ async function fetchJson<T>(file: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+function apiUrl(path: string): string {
+  const apiBase = import.meta.env.VITE_API_BASE_URL;
+  if (!apiBase) {
+    return path;
+  }
+  return `${apiBase.replace(/\/$/, "")}${path}`;
+}
+
 export async function loadDemoData(): Promise<DemoData> {
   const entries = await Promise.all(
     Object.entries(dataFiles).map(async ([key, file]) => [key, await fetchJson(file)] as const),
@@ -31,14 +39,35 @@ export async function loadDemoData(): Promise<DemoData> {
 }
 
 export async function loadApiHealth(): Promise<unknown | null> {
-  const apiBase = import.meta.env.VITE_API_BASE_URL;
-  if (!apiBase) {
-    return null;
-  }
-
-  const response = await fetch(`${apiBase.replace(/\/$/, "")}/health`);
+  const response = await fetch(apiUrl("/health"));
   if (!response.ok) {
     throw new Error(`API health failed: ${response.status}`);
   }
   return response.json();
+}
+
+export async function loadLiveExamples(): Promise<LiveExamplesPayload> {
+  const response = await fetch(apiUrl("/api/live/examples"));
+  if (!response.ok) {
+    throw new Error(`Live examples failed: ${response.status}`);
+  }
+  return response.json() as Promise<LiveExamplesPayload>;
+}
+
+export async function runLivePrediction(payload: {
+  exampleId?: string;
+  sourceExampleId?: string;
+  features?: Record<string, number>;
+}): Promise<LivePredictionResult> {
+  const response = await fetch(apiUrl("/api/live/predict"), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new Error(`Live prediction failed: ${response.status}`);
+  }
+  return response.json() as Promise<LivePredictionResult>;
 }

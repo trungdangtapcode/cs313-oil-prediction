@@ -1,0 +1,536 @@
+{
+  "mode": "historical_examples_for_live_demo",
+  "model": "ENS_FINAL3",
+  "feature_columns": [
+    "yield_spread",
+    "inventory_change_pct",
+    "gdelt_goldstein",
+    "gdelt_tone_7d",
+    "gdelt_tone_30d",
+    "gdelt_goldstein_7d",
+    "oil_return",
+    "usd_return",
+    "sp500_return",
+    "inventory_zscore",
+    "oil_return_lag1",
+    "oil_return_lag2",
+    "gdelt_tone_lag1",
+    "day_of_week_sin",
+    "day_of_week_cos",
+    "month_sin",
+    "month_cos",
+    "gdelt_events_log1p",
+    "conflict_event_count_log1p",
+    "conflict_intensity_7d_log1p",
+    "fatalities_log1p",
+    "fatalities_7d_log1p",
+    "gdelt_volume_lag1_log1p",
+    "vix_lag1_log1p",
+    "net_imports_change_pct_slog1p",
+    "production_change_pct_slog1p",
+    "vix_return_slog1p"
+  ],
+  "feature_stats": {
+    "yield_spread": {
+      "mean": -0.85505010049423,
+      "std": 0.8145134360709126,
+      "min": -2.489836011235269,
+      "max": 0.4117263041311908
+    },
+    "inventory_change_pct": {
+      "mean": 0.17342036749747905,
+      "std": 0.9130112864726315,
+      "min": -2.819140172114643,
+      "max": 3.2568320823848826
+    },
+    "gdelt_goldstein": {
+      "mean": -0.41538245808834007,
+      "std": 1.2122665745539611,
+      "min": -4.600150879330073,
+      "max": 2.9461826156921194
+    },
+    "gdelt_tone_7d": {
+      "mean": -0.6222711949334216,
+      "std": 1.1592121546282812,
+      "min": -3.7519674048177962,
+      "max": 1.735973042551904
+    },
+    "gdelt_tone_30d": {
+      "mean": -0.7088407255075032,
+      "std": 1.1599447592084704,
+      "min": -3.0916376078793957,
+      "max": 1.4020139012786481
+    },
+    "gdelt_goldstein_7d": {
+      "mean": -0.474694815416702,
+      "std": 1.2414654043537339,
+      "min": -4.096296612685454,
+      "max": 1.9800421000047357
+    },
+    "oil_return": {
+      "mean": 0.0034913056323454534,
+      "std": 0.854308137068818,
+      "min": -4.939436854179601,
+      "max": 4.005161183984529
+    },
+    "usd_return": {
+      "mean": -0.01838882587787602,
+      "std": 0.9601284728975127,
+      "min": -4.580245888104669,
+      "max": 3.7334161998852062
+    },
+    "sp500_return": {
+      "mean": 0.04270927172197503,
+      "std": 1.0185173482338965,
+      "min": -6.648004912700932,
+      "max": 10.494444127736346
+    },
+    "inventory_zscore": {
+      "mean": 0.18996767883441829,
+      "std": 0.8247101317062351,
+      "min": -1.7032267520694866,
+      "max": 2.5345654428568687
+    },
+    "oil_return_lag1": {
+      "mean": 0.0010620273498942881,
+      "std": 0.8525053004547806,
+      "min": -4.938451284731978,
+      "max": 4.0047591032484116
+    },
+    "oil_return_lag2": {
+      "mean": -0.0001716606378153727,
+      "std": 0.8524116662206681,
+      "min": -4.945291028552236,
+      "max": 4.010626074908564
+    },
+    "gdelt_tone_lag1": {
+      "mean": -0.5558403386012266,
+      "std": 1.1525170101240554,
+      "min": -4.3570349820326095,
+      "max": 2.120916355573733
+    },
+    "day_of_week_sin": {
+      "mean": 2.2204460492503132e-17,
+      "std": 0.7071067811865476,
+      "min": -0.9510565162951538,
+      "max": 0.9510565162951536
+    },
+    "day_of_week_cos": {
+      "mean": -6.661338147750939e-17,
+      "std": 0.7071067811865476,
+      "min": -0.8090169943749477,
+      "max": 1.0
+    },
+    "month_sin": {
+      "mean": 0.020779146037981366,
+      "std": 0.6951252976772494,
+      "min": -1.0,
+      "max": 1.0
+    },
+    "month_cos": {
+      "mean": 0.05335774770915326,
+      "std": 0.716604492295753,
+      "min": -1.0,
+      "max": 1.0
+    },
+    "gdelt_events_log1p": {
+      "mean": -0.07272584366341588,
+      "std": 0.5792384293914727,
+      "min": -1.5773009105625657,
+      "max": 2.0455467645139858
+    },
+    "conflict_event_count_log1p": {
+      "mean": 0.7267506276364669,
+      "std": 1.1612052495439056,
+      "min": -1.7535545088009101,
+      "max": 4.18151743037194
+    },
+    "conflict_intensity_7d_log1p": {
+      "mean": 0.6023954172854342,
+      "std": 0.8110238532271845,
+      "min": -1.5337248374766341,
+      "max": 2.618568600809905
+    },
+    "fatalities_log1p": {
+      "mean": -0.2067332854023816,
+      "std": 0.8072838768415532,
+      "min": -1.9829881652611399,
+      "max": 3.581060850171245
+    },
+    "fatalities_7d_log1p": {
+      "mean": -0.2592978965363774,
+      "std": 0.7959327016180232,
+      "min": -2.0714810576330778,
+      "max": 3.179073159602179
+    },
+    "gdelt_volume_lag1_log1p": {
+      "mean": -0.13690591165014682,
+      "std": 0.6024431784036558,
+      "min": -2.210024464189551,
+      "max": 1.8522476386473334
+    },
+    "vix_lag1_log1p": {
+      "mean": 0.03940447632280201,
+      "std": 0.4804035398131165,
+      "min": -0.7396225693785407,
+      "max": 2.6438247529902394
+    },
+    "net_imports_change_pct_slog1p": {
+      "mean": 0.3070586242967163,
+      "std": 1.1638271881529993,
+      "min": -3.74177574245864,
+      "max": 6.361755168617614
+    },
+    "production_change_pct_slog1p": {
+      "mean": 0.12816186640060118,
+      "std": 1.6219395021691954,
+      "min": -11.347315382084291,
+      "max": 8.663640745690357
+    },
+    "vix_return_slog1p": {
+      "mean": 0.08738979583502542,
+      "std": 0.9522700152106218,
+      "min": -4.016562451836113,
+      "max": 7.44405707535776
+    }
+  },
+  "rows": [
+    {
+      "id": "hist-2023-04-27",
+      "source_date": "2023-04-26",
+      "target_date": "2023-04-27",
+      "features": {
+        "yield_spread": -1.5173343560849717,
+        "inventory_change_pct": -0.900439116170543,
+        "gdelt_goldstein": 1.3295896438728814,
+        "gdelt_tone_7d": 1.1005989663662263,
+        "gdelt_tone_30d": 0.7092250193358673,
+        "gdelt_goldstein_7d": 1.2016636135585788,
+        "oil_return": -1.6822059128931655,
+        "usd_return": -0.8958554806290708,
+        "sp500_return": -0.4608798853373726,
+        "inventory_zscore": -0.4533702785138947,
+        "oil_return_lag1": -1.0516158950714034,
+        "oil_return_lag2": 0.5547933543289022,
+        "gdelt_tone_lag1": 0.6241531840204202,
+        "day_of_week_sin": 0.5877852522924731,
+        "day_of_week_cos": -0.8090169943749475,
+        "month_sin": 1.0,
+        "month_cos": 6.123233995736766e-17,
+        "gdelt_events_log1p": -0.3536029683537017,
+        "conflict_event_count_log1p": -0.5539125180567158,
+        "conflict_intensity_7d_log1p": -0.8831765141831158,
+        "fatalities_log1p": -1.8177834433731053,
+        "fatalities_7d_log1p": -1.1296616972725713,
+        "gdelt_volume_lag1_log1p": -0.4699970522584134,
+        "vix_lag1_log1p": 0.2821310592537182,
+        "net_imports_change_pct_slog1p": -0.4699128858621159,
+        "production_change_pct_slog1p": -1.2674110205653288,
+        "vix_return_slog1p": 0.11468262515729526
+      },
+      "actual": {
+        "target": 1,
+        "label": "UP"
+      },
+      "prediction": {
+        "model": "ENS_FINAL3",
+        "proba_up": 0.9236539505250794,
+        "pred": 1,
+        "label": "UP",
+        "correct": true,
+        "confidence_margin": 0.42365395052507937
+      },
+      "label": "High-confidence UP hit",
+      "description": "A strong historical UP prediction that was correct."
+    },
+    {
+      "id": "hist-2023-09-18",
+      "source_date": "2023-09-15",
+      "target_date": "2023-09-18",
+      "features": {
+        "yield_spread": -1.868072657942456,
+        "inventory_change_pct": -0.1714513135170402,
+        "gdelt_goldstein": 1.0155667303333942,
+        "gdelt_tone_7d": 1.0696093440605294,
+        "gdelt_tone_30d": 1.1310241655726396,
+        "gdelt_goldstein_7d": 1.6922146532255733,
+        "oil_return": 0.08900651709032062,
+        "usd_return": -0.20645728719596126,
+        "sp500_return": -1.3814414357667044,
+        "inventory_zscore": -1.4314783257035832,
+        "oil_return_lag1": 0.8464001775820418,
+        "oil_return_lag2": -0.10317394579673027,
+        "gdelt_tone_lag1": 0.8014890624120538,
+        "day_of_week_sin": -0.9510565162951538,
+        "day_of_week_cos": 0.3090169943749473,
+        "month_sin": -0.8660254037844383,
+        "month_cos": -0.5000000000000003,
+        "gdelt_events_log1p": -0.741951160427297,
+        "conflict_event_count_log1p": -0.4160055813868327,
+        "conflict_intensity_7d_log1p": -0.12374362219180345,
+        "fatalities_log1p": -1.9829881652611399,
+        "fatalities_7d_log1p": -1.227549374081218,
+        "gdelt_volume_lag1_log1p": -0.6176466265339762,
+        "vix_lag1_log1p": -0.568365877573492,
+        "net_imports_change_pct_slog1p": -3.74177574245864,
+        "production_change_pct_slog1p": 0.0,
+        "vix_return_slog1p": 1.030189930077689
+      },
+      "actual": {
+        "target": 0,
+        "label": "DOWN"
+      },
+      "prediction": {
+        "model": "ENS_FINAL3",
+        "proba_up": 0.0666324039716748,
+        "pred": 0,
+        "label": "DOWN",
+        "correct": true,
+        "confidence_margin": 0.4333675960283252
+      },
+      "label": "High-confidence DOWN hit",
+      "description": "A strong historical DOWN prediction that was correct."
+    },
+    {
+      "id": "hist-2023-07-18",
+      "source_date": "2023-07-17",
+      "target_date": "2023-07-18",
+      "features": {
+        "yield_spread": -2.250696259968802,
+        "inventory_change_pct": -0.0181295149738185,
+        "gdelt_goldstein": 1.7606950918454773,
+        "gdelt_tone_7d": 0.8335835629667847,
+        "gdelt_tone_30d": 0.807370728595092,
+        "gdelt_goldstein_7d": 0.4859244327562499,
+        "oil_return": -0.7666542726397122,
+        "usd_return": -0.17096864590950778,
+        "sp500_return": 0.39086374588086953,
+        "inventory_zscore": -0.7698317100469408,
+        "oil_return_lag1": -0.816961793592067,
+        "oil_return_lag2": 0.6640487741145803,
+        "gdelt_tone_lag1": 1.0147283287239137,
+        "day_of_week_sin": 0.0,
+        "day_of_week_cos": 1.0,
+        "month_sin": 1.2246467991473532e-16,
+        "month_cos": -1.0,
+        "gdelt_events_log1p": -0.4814671172141657,
+        "conflict_event_count_log1p": 2.058192718695373,
+        "conflict_intensity_7d_log1p": 0.3455542786912337,
+        "fatalities_log1p": -0.7042370891582077,
+        "fatalities_7d_log1p": -1.1756421990698174,
+        "gdelt_volume_lag1_log1p": -0.9851997625897392,
+        "vix_lag1_log1p": -0.48050510245206535,
+        "net_imports_change_pct_slog1p": -0.02844503880115855,
+        "production_change_pct_slog1p": 0.0,
+        "vix_return_slog1p": 0.19712258429643725
+      },
+      "actual": {
+        "target": 0,
+        "label": "DOWN"
+      },
+      "prediction": {
+        "model": "ENS_FINAL3",
+        "proba_up": 0.4990688454356302,
+        "pred": 0,
+        "label": "DOWN",
+        "correct": true,
+        "confidence_margin": 0.0009311545643698182
+      },
+      "label": "Low-confidence coin flip",
+      "description": "A near-threshold case useful for stress-testing edits."
+    },
+    {
+      "id": "hist-2026-02-25",
+      "source_date": "2026-02-24",
+      "target_date": "2026-02-25",
+      "features": {
+        "yield_spread": 0.20447185303358656,
+        "inventory_change_pct": 2.7392326428037164,
+        "gdelt_goldstein": 0.3830525192891669,
+        "gdelt_tone_7d": 0.6148788436069637,
+        "gdelt_tone_30d": 0.1817929062342264,
+        "gdelt_goldstein_7d": 0.7619044732112609,
+        "oil_return": -0.4576205236752392,
+        "usd_return": 0.41835435887683636,
+        "sp500_return": 0.8109750662391417,
+        "inventory_zscore": 1.9186222124974388,
+        "oil_return_lag1": -0.18206349133849334,
+        "oil_return_lag2": 0.04323352245248006,
+        "gdelt_tone_lag1": 0.17294811175290695,
+        "day_of_week_sin": 0.9510565162951536,
+        "day_of_week_cos": 0.3090169943749475,
+        "month_sin": 0.4999999999999999,
+        "month_cos": 0.8660254037844386,
+        "gdelt_events_log1p": -0.43887746478739836,
+        "conflict_event_count_log1p": -0.02323281671293507,
+        "conflict_intensity_7d_log1p": -0.41210295050481976,
+        "fatalities_log1p": -1.0824277409181189,
+        "fatalities_7d_log1p": -1.5098348189305641,
+        "gdelt_volume_lag1_log1p": -0.3911544356719801,
+        "vix_lag1_log1p": 0.5386463139132964,
+        "net_imports_change_pct_slog1p": -0.5193451533776674,
+        "production_change_pct_slog1p": -0.3756177777911826,
+        "vix_return_slog1p": -0.8375611901627324
+      },
+      "actual": {
+        "target": 0,
+        "label": "DOWN"
+      },
+      "prediction": {
+        "model": "ENS_FINAL3",
+        "proba_up": 0.8819107342057242,
+        "pred": 1,
+        "label": "UP",
+        "correct": false,
+        "confidence_margin": 0.3819107342057242
+      },
+      "label": "False UP signal",
+      "description": "A predicted UP day that actually closed DOWN."
+    },
+    {
+      "id": "hist-2023-03-03",
+      "source_date": "2023-03-02",
+      "target_date": "2023-03-03",
+      "features": {
+        "yield_spread": -2.059384458955629,
+        "inventory_change_pct": 0.2916310072077597,
+        "gdelt_goldstein": -0.4377827338880629,
+        "gdelt_tone_7d": -0.38827558037040083,
+        "gdelt_tone_30d": -0.029011350843991587,
+        "gdelt_goldstein_7d": -0.45556281496330575,
+        "oil_return": 0.20963358481923813,
+        "usd_return": 1.2112947775595364,
+        "sp500_return": 0.8032926772411072,
+        "inventory_zscore": -0.2794810285754125,
+        "oil_return_lag1": 0.2005558489263503,
+        "oil_return_lag2": 0.7453911334881933,
+        "gdelt_tone_lag1": -0.4477561563190129,
+        "day_of_week_sin": -0.5877852522924729,
+        "day_of_week_cos": -0.8090169943749477,
+        "month_sin": 0.8660254037844385,
+        "month_cos": 0.5000000000000001,
+        "gdelt_events_log1p": -0.771366292036002,
+        "conflict_event_count_log1p": -0.3021243448456317,
+        "conflict_intensity_7d_log1p": -0.003693769219673639,
+        "fatalities_log1p": -0.8101820512078239,
+        "fatalities_7d_log1p": -0.9546462570035891,
+        "gdelt_volume_lag1_log1p": -0.9640533857646171,
+        "vix_lag1_log1p": 0.4917141517136915,
+        "net_imports_change_pct_slog1p": 0.7349254504889096,
+        "production_change_pct_slog1p": 0.0,
+        "vix_return_slog1p": -0.5683166674370425
+      },
+      "actual": {
+        "target": 1,
+        "label": "UP"
+      },
+      "prediction": {
+        "model": "ENS_FINAL3",
+        "proba_up": 0.054078510789914165,
+        "pred": 0,
+        "label": "DOWN",
+        "correct": false,
+        "confidence_margin": 0.44592148921008584
+      },
+      "label": "False DOWN signal",
+      "description": "A predicted DOWN day that actually closed UP."
+    },
+    {
+      "id": "hist-2026-03-18",
+      "source_date": "2026-03-17",
+      "target_date": "2026-03-18",
+      "features": {
+        "yield_spread": 0.060988002273706744,
+        "inventory_change_pct": 1.0903584579153696,
+        "gdelt_goldstein": -2.3922238732174814,
+        "gdelt_tone_7d": -1.7920794400437456,
+        "gdelt_tone_30d": -0.3181285230162098,
+        "gdelt_goldstein_7d": -3.1371794574558263,
+        "oil_return": 1.379770869066303,
+        "usd_return": -0.3107168099251378,
+        "sp500_return": 0.24023407045599596,
+        "inventory_zscore": 2.408188861030348,
+        "oil_return_lag1": -1.2574035977037172,
+        "oil_return_lag2": 1.1479103983117194,
+        "gdelt_tone_lag1": -1.1871275055133448,
+        "day_of_week_sin": 0.9510565162951536,
+        "day_of_week_cos": 0.3090169943749475,
+        "month_sin": 0.8660254037844385,
+        "month_cos": 0.5000000000000001,
+        "gdelt_events_log1p": 0.830836957489046,
+        "conflict_event_count_log1p": 1.658911445752646,
+        "conflict_intensity_7d_log1p": 2.5715085874077737,
+        "fatalities_log1p": -0.25998401012016553,
+        "fatalities_7d_log1p": 0.19820813289534966,
+        "gdelt_volume_lag1_log1p": 0.35840468504106765,
+        "vix_lag1_log1p": 0.7945599859353236,
+        "net_imports_change_pct_slog1p": 0.31056893652017187,
+        "production_change_pct_slog1p": -0.11439334414954645,
+        "vix_return_slog1p": -0.5732125626636491
+      },
+      "actual": {
+        "target": 1,
+        "label": "UP"
+      },
+      "prediction": {
+        "model": "ENS_FINAL3",
+        "proba_up": 0.35057497986337793,
+        "pred": 0,
+        "label": "DOWN",
+        "correct": false,
+        "confidence_margin": 0.14942502013662207
+      },
+      "label": "Recent actual UP",
+      "description": "Recent test-period UP example."
+    },
+    {
+      "id": "hist-2026-03-19",
+      "source_date": "2026-03-18",
+      "target_date": "2026-03-19",
+      "features": {
+        "yield_spread": 0.029102702104844523,
+        "inventory_change_pct": 1.0903584579153696,
+        "gdelt_goldstein": -2.9369422963613454,
+        "gdelt_tone_7d": -1.8364720604865112,
+        "gdelt_tone_30d": -0.42294605497652277,
+        "gdelt_goldstein_7d": -3.142275371078153,
+        "oil_return": 1.6528538982239411,
+        "usd_return": 1.1782338864177353,
+        "sp500_return": -1.5416798855947056,
+        "inventory_zscore": 2.3516938770878597,
+        "oil_return_lag1": 1.3797760870525368,
+        "oil_return_lag2": -1.2590132257602051,
+        "gdelt_tone_lag1": -1.441378327411277,
+        "day_of_week_sin": 0.5877852522924731,
+        "day_of_week_cos": -0.8090169943749475,
+        "month_sin": 0.8660254037844385,
+        "month_cos": 0.5000000000000001,
+        "gdelt_events_log1p": 0.8814269090346438,
+        "conflict_event_count_log1p": 1.4051221554536217,
+        "conflict_intensity_7d_log1p": 1.932541949294814,
+        "fatalities_log1p": 0.058043462818924654,
+        "fatalities_7d_log1p": -0.08504887536111477,
+        "gdelt_volume_lag1_log1p": 0.67996023087196,
+        "vix_lag1_log1p": 0.6812659272182359,
+        "net_imports_change_pct_slog1p": 0.31056893652017187,
+        "production_change_pct_slog1p": -0.11439334414954645,
+        "vix_return_slog1p": 1.5875204801887985
+      },
+      "actual": {
+        "target": 0,
+        "label": "DOWN"
+      },
+      "prediction": {
+        "model": "ENS_FINAL3",
+        "proba_up": 0.18166630090838043,
+        "pred": 0,
+        "label": "DOWN",
+        "correct": true,
+        "confidence_margin": 0.31833369909161957
+      },
+      "label": "Recent actual DOWN",
+      "description": "Recent test-period DOWN example."
+    }
+  ],
+  "note": "Selecting an example replays a validated historical prediction. Editing fields uses the backend nearest-neighbor demo scorer."
+}

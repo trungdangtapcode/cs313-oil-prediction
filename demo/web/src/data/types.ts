@@ -117,6 +117,66 @@ export type MlopsStatus = {
   metric_contract: Record<string, unknown>;
 };
 
+export type LiveExample = {
+  id: string;
+  label: string;
+  description: string;
+  source_date: string;
+  target_date: string;
+  features: Record<string, number>;
+  actual: {
+    target: number;
+    label: "UP" | "DOWN";
+  };
+  prediction: {
+    model: string;
+    proba_up: number;
+    pred: number;
+    label: "UP" | "DOWN";
+    correct: boolean;
+    confidence_margin: number;
+  };
+};
+
+export type LiveExamplesPayload = {
+  mode: string;
+  model: string;
+  feature_columns: string[];
+  rows: LiveExample[];
+  note: string;
+};
+
+export type LivePredictionResult = {
+  mode: "historical_replay" | "nearest_neighbor_demo_scorer";
+  model: string;
+  sourceExampleId: string | null;
+  targetDate: string;
+  sourceDate?: string;
+  probaUp: number;
+  pred: number;
+  predLabel: "UP" | "DOWN";
+  confidenceMargin: number;
+  actual?: {
+    target: number;
+    label: "UP" | "DOWN";
+  };
+  correct?: boolean;
+  featureCompleteness?: number;
+  providedFeatures?: string[];
+  imputedFeatures?: string[];
+  audit: string[];
+  neighbors: Array<{
+    id: string;
+    targetDate: string;
+    sourceDate: string;
+    distance: number;
+    probaUp: number;
+    predLabel: "UP" | "DOWN";
+    actualLabel: "UP" | "DOWN";
+    correct: boolean;
+  }>;
+};
+
 export type DemoData = {
   manifest: Manifest;
   leaderboard: { rows: LeaderboardRow[]; best_by_experiment: LeaderboardRow[] };

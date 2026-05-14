@@ -234,6 +234,162 @@ def copy_assets() -> list[dict[str, Any]]:
     return index
 
 
+def build_live_prediction_payloads(
+    decision_log: list[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    dataset_rows = read_csv(DATASET_DIR / "dataset_final_noleak_step5c_scaler.csv")
+    if not dataset_rows:
+        raise RuntimeError("No rows found in scaled dataset")
+
+    excluded = {"date", "oil_return_fwd1", "oil_return_fwd1_date"}
+    feature_columns = [key for key in dataset_rows[0].keys() if key not in excluded]
+    by_target_date = {
+        str(row.get("oil_return_fwd1_date")): row
+        for row in dataset_rows
+        if row.get("oil_return_fwd1_date")
+    }
+    by_source_date = {
+        str(row.get("date")): row
+        for row in dataset_rows
+        if row.get("date")
+    }
+
+    reference_rows: list[dict[str, Any]] = []
+    for decision in decision_log:
+        target_date = str(decision["date"])
+        dataset_row = by_target_date.get(target_date) or by_source_date.get(target_date)
+        if not dataset_row:
+            continue
+        features = {
+            feature: float(dataset_row[feature])
+            for feature in feature_columns
+            if isinstance(dataset_row.get(feature), (int, float))
+        }
+        reference_rows.append(
+            {
+                "id": f"hist-{target_date}",
+                "source_date": dataset_row.get("date"),
+                "target_date": target_date,
+                "features": features,
+                "actual": {
+                    "target": decision["target"],
+                    "label": decision["actual_label"],
+                },
+                "prediction": {
+                    "model": "ENS_FINAL3",
+                    "proba_up": decision["proba_up"],
+                    "pred": decision["pred"],
+                    "label": decision["pred_label"],
+                    "correct": decision["correct"],
+                    "confidence_margin": decision["confidence_margin"],
+                },
+            }
+        )
+
+    if len(reference_rows) != len(decision_log):
+        raise RuntimeError(
+            f"Live reference row count {len(reference_rows)} does not match decision log {len(decision_log)}"
+        )
+
+    stats: dict[str, dict[str, float]] = {}
+    for feature in feature_columns:
+        values = [float(row["features"][feature]) for row in reference_rows if feature in row["features"]]
+        avg = mean(values)
+        variance = mean([(value - avg) ** 2 for value in values]) if len(values) > 1 else 0.0
+        stats[feature] = {
+            "mean": avg,
+            "std": math.sqrt(variance) or 1.0,
+            "min": min(values),
+            "max": max(values),
+        }
+
+    def pick_example(
+        label: str,
+        description: str,
+        predicate: Any,
+        reverse: bool = True,
+    ) -> dict[str, Any] | None:
+        candidates = [row for row in reference_rows if predicate(row)]
+        if not candidates:
+            return None
+        row = sorted(
+            candidates,
+            key=lambda item: float(item["prediction"]["confidence_margin"]),
+            reverse=reverse,
+        )[0]
+        return {
+            **row,
+            "label": label,
+            "description": description,
+        }
+
+    picked = [
+        pick_example(
+            "High-confidence UP hit",
+            "A strong historical UP prediction that was correct.",
+            lambda row: row["prediction"]["pred"] == 1 and row["prediction"]["correct"],
+        ),
+        pick_example(
+            "High-confidence DOWN hit",
+            "A strong historical DOWN prediction that was correct.",
+            lambda row: row["prediction"]["pred"] == 0 and row["prediction"]["correct"],
+        ),
+        pick_example(
+            "Low-confidence coin flip",
+            "A near-threshold case useful for stress-testing edits.",
+            lambda row: True,
+            reverse=False,
+        ),
+        pick_example(
+            "False UP signal",
+            "A predicted UP day that actually closed DOWN.",
+            lambda row: row["prediction"]["pred"] == 1 and not row["prediction"]["correct"],
+        ),
+        pick_example(
+            "False DOWN signal",
+            "A predicted DOWN day that actually closed UP.",
+            lambda row: row["prediction"]["pred"] == 0 and not row["prediction"]["correct"],
+        ),
+    ]
+
+    for row in reversed(reference_rows):
+        if row["actual"]["label"] == "UP":
+            picked.append({**row, "label": "Recent actual UP", "description": "Recent test-period UP example."})
+            break
+    for row in reversed(reference_rows):
+        if row["actual"]["label"] == "DOWN":
+            picked.append({**row, "label": "Recent actual DOWN", "description": "Recent test-period DOWN example."})
+            break
+
+    examples: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for row in picked:
+        if row is None or row["id"] in seen_ids:
+            continue
+        seen_ids.add(row["id"])
+        examples.append(row)
+
+    examples_payload = {
+        "mode": "historical_examples_for_live_demo",
+        "model": "ENS_FINAL3",
+        "feature_columns": feature_columns,
+        "feature_stats": stats,
+        "rows": examples,
+        "note": "Selecting an example replays a validated historical prediction. Editing fields uses the backend nearest-neighbor demo scorer.",
+    }
+
+    reference_payload = {
+        "mode": "nearest_neighbor_demo_reference",
+        "model": "ENS_FINAL3",
+        "feature_columns": feature_columns,
+        "feature_stats": stats,
+        "rows": reference_rows,
+        "note": "This reference set supports the live demo scorer. It is not a replacement for production model inference.",
+    }
+
+    return examples_payload, reference_payload
+
+
 def build() -> None:
     ensure_dirs()
 
@@ -336,6 +492,8 @@ def build() -> None:
             }
         )
 
+    live_examples, live_reference = build_live_prediction_payloads(decision_log)
+
     threshold_curve = []
     for step in range(35, 66, 1):
         threshold = step / 100
@@ -396,6 +554,7 @@ def build() -> None:
             "wide_prediction_days": len(wide_by_date),
             "feature_rows": len(feature_rows),
             "assets": len(asset_index),
+            "live_examples": len(live_examples["rows"]),
         },
         "source_hashes": source_hashes,
         "local_control_status": {
@@ -448,6 +607,8 @@ def build() -> None:
     write_json("leakage_audit_table.json", {"rows": leakage_rows_raw})
     write_json("asset_index.json", {"rows": asset_index})
     write_json("mlops_status.json", mlops_status)
+    write_json("live_prediction_examples.json", live_examples)
+    write_json("live_prediction_reference.json", live_reference)
 
     print(
         json.dumps(

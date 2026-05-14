@@ -579,6 +579,126 @@ input[type="range"] {
   color: var(--mine);
 }
 
+.muted-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.live-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 16px;
+}
+
+.live-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.live-picker label,
+.feature-input-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.live-picker select,
+.feature-input-grid input {
+  min-height: 40px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0 10px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.live-example-card,
+.live-result {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 13px;
+  background: var(--bg);
+}
+
+.live-example-card span,
+.live-example-card small,
+.live-result small,
+.live-result--empty {
+  color: var(--muted);
+}
+
+.live-result strong {
+  color: var(--oil);
+  font-size: 2.1rem;
+  line-height: 1;
+}
+
+.live-result--empty {
+  align-content: center;
+  justify-items: start;
+}
+
+.live-result--empty svg {
+  color: var(--mine);
+}
+
+.live-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.live-actions button {
+  min-height: 40px;
+  border-radius: var(--radius);
+  padding: 0 12px;
+  color: #07110f;
+  background: var(--mine);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.live-actions button:first-child {
+  color: var(--text);
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+
+.live-actions button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--red);
+}
+
+.feature-input-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.feature-input-grid label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-stack {
+  display: grid;
+  gap: 10px;
+}
+
 .loading-shell {
   min-height: 100vh;
   display: grid;
@@ -631,6 +751,10 @@ input[type="range"] {
     grid-template-columns: 1fr;
   }
 
+  .live-layout {
+    grid-template-columns: 1fr;
+  }
+
   .kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -675,7 +799,8 @@ input[type="range"] {
   .group-grid,
   .image-grid,
   .decision-kpis,
-  .ops-grid {
+  .ops-grid,
+  .feature-input-grid {
     grid-template-columns: 1fr;
   }
 

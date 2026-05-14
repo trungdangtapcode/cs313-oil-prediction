@@ -125,6 +125,8 @@ def main() -> None:
         "leakage_audit_table.json",
         "asset_index.json",
         "mlops_status.json",
+        "live_prediction_examples.json",
+        "live_prediction_reference.json",
     ]
     for name in required_files:
         web_payload = load_json(WEB_DATA / name)
@@ -144,6 +146,13 @@ def main() -> None:
     decisions = load_json(WEB_DATA / "ens_final3_decision_log.json")
     if len(decisions.get("rows", [])) != EXPECTED["n"]:
         fail("ENS_FINAL3 decision log row count must match final test rows")
+
+    live_examples = load_json(WEB_DATA / "live_prediction_examples.json")
+    if len(live_examples.get("rows", [])) < 5:
+        fail("live prediction examples must include several selectable examples")
+    live_reference = load_json(WEB_DATA / "live_prediction_reference.json")
+    if len(live_reference.get("rows", [])) != EXPECTED["n"]:
+        fail("live prediction reference row count must match final test rows")
 
     print(
         json.dumps(
