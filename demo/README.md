@@ -70,6 +70,13 @@ Local Android APK output after `npm run android:debug`:
 demo/web/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+Current Cloud Run deployment:
+
+```text
+Frontend: https://oil-signal-mine-web-oeo4vhl7ya-uc.a.run.app
+Backend: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app
+```
+
 ## Current CI/CD Control Status
 
 Local CLI access is ready for setup and operation:

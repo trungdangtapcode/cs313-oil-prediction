@@ -89,6 +89,14 @@ oil-signal-mine-backend
 oil-signal-mine-web
 ```
 
+Current deployed services:
+
+```text
+Frontend: https://oil-signal-mine-web-oeo4vhl7ya-uc.a.run.app
+Backend: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app
+Backend health: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/health
+```
+
 Deploy flow:
 
 ```text
