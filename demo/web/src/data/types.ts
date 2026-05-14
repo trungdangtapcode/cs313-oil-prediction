@@ -157,14 +157,54 @@ export type TradingYearRow = {
   exposure: number;
 };
 
+export type TradingThresholdRow = {
+  id: string;
+  strategy: string;
+  source_model: string;
+  threshold: number;
+  validation_return: number;
+  validation_sharpe: number | null;
+  total_return: number;
+  zero_cost_return: number;
+  cost_drag: number;
+  sharpe: number | null;
+  sortino: number | null;
+  max_drawdown: number;
+  trades: number;
+  turnover: number;
+  exposure: number;
+  profit_on_capital: number;
+};
+
+export type TradingThresholdSummary = {
+  id: string;
+  strategy: string;
+  source_model: string;
+  capital_base: number;
+  selected_threshold: number;
+  selected_total_return: number;
+  selected_profit_on_capital: number;
+  selected_trades: number;
+  selected_validation_return: number;
+  selected_validation_sharpe: number | null;
+  best_test_threshold: number;
+  best_test_total_return: number;
+  best_test_profit_on_capital: number;
+  best_test_trades: number;
+  best_test_sharpe: number | null;
+  best_test_note: string;
+};
+
 export type TradingSummary = {
   mode: string;
   assumptions: {
     objective: string;
     walk_forward_contract: string;
     prediction_target: string;
+    threshold_rule: string;
     execution_lag_days: number;
     transaction_cost: number;
+    capital_base: number;
     reversal_cost_note: string;
     benchmark: string;
   };
@@ -178,6 +218,8 @@ export type TradingSummary = {
   comparison: TradingStrategyRow[];
   yearly: TradingYearRow[];
   equity_curve: Array<Record<string, number | string>>;
+  threshold_summary: TradingThresholdSummary[];
+  threshold_sweep: TradingThresholdRow[];
 };
 
 export type LiveExample = {

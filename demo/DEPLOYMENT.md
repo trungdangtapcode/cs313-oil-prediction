@@ -103,6 +103,7 @@ Backend research endpoints:
 Live examples: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/api/live/examples
 Live prediction: POST https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/api/live/predict
 Trading summary: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/api/trading/summary
+Trading thresholds: https://oil-signal-mine-backend-oeo4vhl7ya-uc.a.run.app/api/trading/thresholds?model=xgb
 ```
 
 Deploy flow:

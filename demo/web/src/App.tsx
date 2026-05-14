@@ -83,6 +83,25 @@ function formatSignedPercent(value: number, digits = 1): string {
   return `${sign}${formatPercent(value, digits)}`;
 }
 
+function formatSignedCurrency(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "n/a";
+  }
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${new Intl.NumberFormat("en-US", {
+    currency: "USD",
+    maximumFractionDigits: 0,
+    style: "currency",
+  }).format(value)}`;
+}
+
+function performanceTone(value: number | null | undefined): "good" | "bad" | "neutral" {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "neutral";
+  }
+  return value >= 0 ? "good" : "bad";
+}
+
 function riskTone(risk: string): "good" | "bad" | "neutral" | "info" {
   if (risk === "low") {
     return "good";
@@ -793,10 +812,34 @@ function LivePredictionDemo({ data }: { data: DemoData }) {
 
 function TradingResearch({ data }: { data: DemoData }) {
   const trading = data.trading;
+  const [thresholdModelId, setThresholdModelId] = useState("xgb");
+  const [thresholdIndices, setThresholdIndices] = useState<Record<string, number>>({});
   const comparison = trading.comparison;
   const buyHold = comparison.find((row) => row.id === "buy_hold") ?? comparison[0];
   const best = comparison[0];
   const mlRows = comparison.filter((row) => row.id !== "buy_hold");
+  const thresholdModels = trading.threshold_summary ?? [];
+  const activeSummary = thresholdModels.find((row) => row.id === thresholdModelId) ?? thresholdModels[0];
+  const activeThresholdRows = activeSummary
+        ? (trading.threshold_sweep ?? [])
+        .filter((row) => row.id === activeSummary.id)
+        .sort((a, b) => a.threshold - b.threshold)
+    : [];
+  const defaultThresholdIndex = activeSummary
+    ? Math.max(0, activeThresholdRows.findIndex((row) => row.threshold === activeSummary.selected_threshold))
+    : 0;
+  const activeThresholdIndex = Math.min(
+    Math.max(0, thresholdIndices[activeSummary?.id ?? ""] ?? defaultThresholdIndex),
+    Math.max(0, activeThresholdRows.length - 1),
+  );
+  const activeThreshold = activeThresholdRows[activeThresholdIndex];
+  const thresholdChartRows = activeThresholdRows.map((row) => ({
+    threshold: row.threshold,
+    "Net return": row.total_return,
+    "Zero cost": row.zero_cost_return,
+    "Validation return": row.validation_return,
+    "Buy & Hold": buyHold?.total_return ?? 0,
+  }));
   const equityRows = trading.equity_curve.map((row) => ({
     date: String(row.date),
     XGBoost: Number(row.xgb ?? 1),
@@ -862,6 +905,116 @@ function TradingResearch({ data }: { data: DemoData }) {
           icon={<Activity size={18} />}
         />
       </div>
+
+      {activeThreshold && activeSummary ? (
+        <>
+          <Section title="Threshold Profit Lab" eyebrow="Signal gate">
+            <div className="threshold-lab">
+              <div className="segmented-control" role="tablist" aria-label="Trading threshold model">
+                {thresholdModels.map((model) => (
+                  <button
+                    className={model.id === activeSummary.id ? "segmented-control__item segmented-control__item--active" : "segmented-control__item"}
+                    key={model.id}
+                    onClick={() => setThresholdModelId(model.id)}
+                    type="button"
+                  >
+                    {model.strategy}
+                  </button>
+                ))}
+              </div>
+
+              <div className="threshold-slider">
+                <div>
+                  <span>Expected-return threshold</span>
+                  <strong>{formatPercent(activeThreshold.threshold, 2)}</strong>
+                </div>
+                <input
+                  aria-label="Trading threshold"
+                  max={Math.max(0, activeThresholdRows.length - 1)}
+                  min={0}
+                  onChange={(event) =>
+                    setThresholdIndices((prev) => ({
+                      ...prev,
+                      [activeSummary.id]: Number(event.target.value),
+                    }))
+                  }
+                  step={1}
+                  type="range"
+                  value={activeThresholdIndex}
+                />
+              </div>
+
+              <div className="threshold-metric-grid">
+                <div className="threshold-metric">
+                  <span>Net return</span>
+                  <strong className={`text-${performanceTone(activeThreshold.total_return)}`}>
+                    {formatSignedPercent(activeThreshold.total_return, 1)}
+                  </strong>
+                  <small>after lag and 0.15% turnover cost</small>
+                </div>
+                <div className="threshold-metric">
+                  <span>Profit on {formatSignedCurrency(activeSummary.capital_base)}</span>
+                  <strong className={`text-${performanceTone(activeThreshold.profit_on_capital)}`}>
+                    {formatSignedCurrency(activeThreshold.profit_on_capital)}
+                  </strong>
+                  <small>same percentage return, scaled to capital</small>
+                </div>
+                <div className="threshold-metric">
+                  <span>Trades</span>
+                  <strong>{activeThreshold.trades}</strong>
+                  <small>{formatPercent(activeThreshold.exposure, 1)} market exposure</small>
+                </div>
+                <div className="threshold-metric">
+                  <span>Sharpe</span>
+                  <strong>{formatNumber(activeThreshold.sharpe, 2)}</strong>
+                  <small>{formatPercent(activeThreshold.max_drawdown, 1)} max drawdown</small>
+                </div>
+              </div>
+
+              <div className="threshold-compare">
+                <div>
+                  <span>Validation-selected</span>
+                  <strong>{formatPercent(activeSummary.selected_threshold, 2)}</strong>
+                  <small>
+                    {formatSignedPercent(activeSummary.selected_total_return, 1)} net,
+                    {" "}{formatSignedCurrency(activeSummary.selected_profit_on_capital)}
+                  </small>
+                </div>
+                <div>
+                  <span>
+                    Best test threshold <Pill tone="info">research-only</Pill>
+                  </span>
+                  <strong>{formatPercent(activeSummary.best_test_threshold, 2)}</strong>
+                  <small>
+                    {formatSignedPercent(activeSummary.best_test_total_return, 1)} net,
+                    {" "}{formatSignedCurrency(activeSummary.best_test_profit_on_capital)}
+                  </small>
+                </div>
+              </div>
+            </div>
+          </Section>
+
+          <Section title="Threshold Return Curve" eyebrow={activeSummary.strategy}>
+            <div className="chart-block">
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={thresholdChartRows}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#25313c" />
+                  <XAxis dataKey="threshold" tickFormatter={(value) => formatPercent(Number(value), 2)} />
+                  <YAxis tickFormatter={(value) => formatPercent(Number(value), 0)} />
+                  <Tooltip
+                    formatter={(value: number) => formatSignedPercent(value, 1)}
+                    labelFormatter={(value) => `Threshold ${formatPercent(Number(value), 2)}`}
+                  />
+                  <Line dataKey="Buy & Hold" stroke="#f6b14a" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+                  <Line dataKey="Net return" stroke="#31d0aa" strokeWidth={2} dot={false} />
+                  <Line dataKey="Zero cost" stroke="#7dd3fc" strokeWidth={2} dot={false} />
+                  <Line dataKey="Validation return" stroke="#c084fc" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Section>
+        </>
+      ) : null}
 
       <Section title="Equity Curve" eyebrow="Net of lag and costs">
         <div className="chart-block chart-block--large">

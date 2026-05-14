@@ -606,18 +606,38 @@ def simulate_strategy(
     }
 
 
-def optimize_trading_threshold(rows: list[dict[str, Any]], cost_rate: float) -> dict[str, Any]:
+def trading_threshold_candidates(rows: list[dict[str, Any]]) -> list[float]:
     abs_scores = sorted(abs(float(row["predicted_return"])) for row in rows)
     if not abs_scores:
-        return {"threshold": 0.0, "metrics": strategy_metrics([])}
+        return [0.0]
 
     candidates = {0.0}
     for idx in range(5, 96, 5):
         candidates.add(abs_scores[min(len(abs_scores) - 1, int(len(abs_scores) * idx / 100))])
-    candidates.update([0.0025, 0.005, 0.0075, 0.01, 0.015, 0.02])
+    candidates.update(
+        [
+            0.0005,
+            0.001,
+            0.0015,
+            0.002,
+            0.0025,
+            0.003,
+            0.004,
+            0.005,
+            0.0075,
+            0.01,
+            0.015,
+            0.02,
+        ]
+    )
+    return sorted(candidates)
+
+
+def optimize_trading_threshold(rows: list[dict[str, Any]], cost_rate: float) -> dict[str, Any]:
+    candidates = trading_threshold_candidates(rows)
 
     best: dict[str, Any] | None = None
-    for threshold in sorted(candidates):
+    for threshold in candidates:
         result = simulate_strategy(rows, threshold, cost_rate)
         metrics = result["metrics"]
         sharpe = metrics["sharpe"] if metrics["sharpe"] is not None else -999.0
@@ -627,6 +647,81 @@ def optimize_trading_threshold(rows: list[dict[str, Any]], cost_rate: float) -> 
     if best is None:
         return {"threshold": 0.0, "metrics": strategy_metrics([])}
     return {"threshold": best["threshold"], "metrics": best["metrics"]}
+
+
+def build_threshold_sweep(
+    spec: dict[str, Any],
+    val_rows: list[dict[str, Any]],
+    test_rows: list[dict[str, Any]],
+    cost_rate: float,
+    selected_threshold: float,
+    capital_base: float,
+) -> list[dict[str, Any]]:
+    candidates = set(trading_threshold_candidates(val_rows + test_rows))
+    candidates.add(selected_threshold)
+
+    sweep = []
+    for threshold in sorted(candidates):
+        val_result = simulate_strategy(val_rows, threshold, cost_rate)
+        test_result = simulate_strategy(test_rows, threshold, cost_rate)
+        metrics = test_result["metrics"]
+        sweep.append(
+            {
+                "id": spec["id"],
+                "strategy": spec["label"],
+                "source_model": spec["source_model"],
+                "threshold": threshold,
+                "validation_return": val_result["metrics"]["total_return"],
+                "validation_sharpe": val_result["metrics"]["sharpe"],
+                "total_return": metrics["total_return"],
+                "zero_cost_return": metrics["zero_cost_return"],
+                "cost_drag": metrics["cost_drag"],
+                "sharpe": metrics["sharpe"],
+                "sortino": metrics["sortino"],
+                "max_drawdown": metrics["max_drawdown"],
+                "trades": metrics["trades"],
+                "turnover": metrics["turnover"],
+                "exposure": metrics["exposure"],
+                "profit_on_capital": metrics["total_return"] * capital_base,
+            }
+        )
+    return sweep
+
+
+def build_threshold_summary(
+    spec: dict[str, Any],
+    selected_threshold: float,
+    selected_metrics: dict[str, Any],
+    sweep: list[dict[str, Any]],
+    capital_base: float,
+) -> dict[str, Any]:
+    best_test = max(
+        sweep,
+        key=lambda row: (
+            row["total_return"],
+            row["sharpe"] if row["sharpe"] is not None else -999.0,
+            -row["turnover"],
+        ),
+    )
+    selected = min(sweep, key=lambda row: abs(row["threshold"] - selected_threshold))
+    return {
+        "id": spec["id"],
+        "strategy": spec["label"],
+        "source_model": spec["source_model"],
+        "capital_base": capital_base,
+        "selected_threshold": selected_threshold,
+        "selected_total_return": selected_metrics["total_return"],
+        "selected_profit_on_capital": selected_metrics["total_return"] * capital_base,
+        "selected_trades": selected_metrics["trades"],
+        "selected_validation_return": selected["validation_return"],
+        "selected_validation_sharpe": selected["validation_sharpe"],
+        "best_test_threshold": best_test["threshold"],
+        "best_test_total_return": best_test["total_return"],
+        "best_test_profit_on_capital": best_test["profit_on_capital"],
+        "best_test_trades": best_test["trades"],
+        "best_test_sharpe": best_test["sharpe"],
+        "best_test_note": "Research oracle only: this threshold is selected after seeing the test window.",
+    }
 
 
 def buy_hold_strategy(rows: list[dict[str, Any]], cost_rate: float) -> dict[str, Any]:
@@ -710,6 +805,7 @@ def build_trading_strategy_payload() -> dict[str, Any]:
         return attached
 
     cost_rate = 0.0015
+    capital_base = 10000.0
     model_specs = [
         {
             "id": "xgb",
@@ -728,6 +824,8 @@ def build_trading_strategy_payload() -> dict[str, Any]:
     strategies: dict[str, dict[str, Any]] = {}
     comparison = []
     yearly = []
+    threshold_sweep = []
+    threshold_summary = []
 
     for spec in model_specs:
         val_rows = attach_returns(prediction_rows(val_predictions, spec["source_model"]))
@@ -740,6 +838,24 @@ def build_trading_strategy_payload() -> dict[str, Any]:
 
         threshold_result = optimize_trading_threshold(val_rows, cost_rate)
         test_result = simulate_strategy(test_rows, threshold_result["threshold"], cost_rate)
+        sweep = build_threshold_sweep(
+            spec,
+            val_rows,
+            test_rows,
+            cost_rate,
+            threshold_result["threshold"],
+            capital_base,
+        )
+        threshold_sweep.extend(sweep)
+        threshold_summary.append(
+            build_threshold_summary(
+                spec,
+                threshold_result["threshold"],
+                test_result["metrics"],
+                sweep,
+                capital_base,
+            )
+        )
         strategies[spec["id"]] = {"spec": spec, **test_result}
         comparison.append(
             {
@@ -773,13 +889,32 @@ def build_trading_strategy_payload() -> dict[str, Any]:
     ridge_test = ridge_rows(test_rows_dataset)
     ridge_threshold = optimize_trading_threshold(ridge_val, cost_rate)
     ridge_result = simulate_strategy(ridge_test, ridge_threshold["threshold"], cost_rate)
+    ridge_spec = {
+        "id": "ridge",
+        "label": "Ridge",
+        "source_model": "pure_python_ridge_regression",
+        "description": "Ridge regression fit on train rows to predict next-day oil return directly.",
+    }
+    ridge_sweep = build_threshold_sweep(
+        ridge_spec,
+        ridge_val,
+        ridge_test,
+        cost_rate,
+        ridge_threshold["threshold"],
+        capital_base,
+    )
+    threshold_sweep.extend(ridge_sweep)
+    threshold_summary.append(
+        build_threshold_summary(
+            ridge_spec,
+            ridge_threshold["threshold"],
+            ridge_result["metrics"],
+            ridge_sweep,
+            capital_base,
+        )
+    )
     strategies["ridge"] = {
-        "spec": {
-            "id": "ridge",
-            "label": "Ridge",
-            "source_model": "pure_python_ridge_regression",
-            "description": "Ridge regression fit on train rows to predict next-day oil return directly.",
-        },
+        "spec": ridge_spec,
         **ridge_result,
     }
     comparison.append(
@@ -864,8 +999,10 @@ def build_trading_strategy_payload() -> dict[str, Any]:
             "objective": "Compare ML trading strategies against buy-and-hold on the current oil next-day return test window.",
             "walk_forward_contract": "Models are trained before validation/test in the staged ML run; trading thresholds are selected on 2022 validation and frozen for 2023+ test.",
             "prediction_target": "oil_return_fwd1 next trading-day return",
+            "threshold_rule": "Long when predicted return > +threshold, short when predicted return < -threshold, otherwise flat.",
             "execution_lag_days": 1,
             "transaction_cost": cost_rate,
+            "capital_base": capital_base,
             "reversal_cost_note": "Position changes are charged by turnover; +1 to -1 costs 2 * transaction_cost.",
             "benchmark": "Buy & Hold is long oil over the same target-date test window.",
         },
@@ -878,6 +1015,8 @@ def build_trading_strategy_payload() -> dict[str, Any]:
         "comparison": sorted(comparison, key=lambda row: row["total_return"], reverse=True),
         "yearly": yearly,
         "equity_curve": equity_curve,
+        "threshold_summary": threshold_summary,
+        "threshold_sweep": threshold_sweep,
         "sample_days": {
             strategy_id: strategy["daily"][:8]
             for strategy_id, strategy in strategies.items()

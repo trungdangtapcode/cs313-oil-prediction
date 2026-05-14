@@ -70,6 +70,7 @@ The generated product now includes:
 Live prediction examples: backend-connected replay and edited-field scorer
 Feature explanations: global ranking plus LIME/SHAP-style local attributions
 Trading research: XGB, Random Forest, Ridge, and Buy & Hold with lag, costs, and drawdown metrics
+Threshold profit lab: model-specific trading threshold sweep, net profit, trades, and research-only best-test comparison
 ```
 
 Local Android APK output after `npm run android:debug`:

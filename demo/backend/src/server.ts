@@ -151,6 +151,7 @@ export function createApp(): express.Express {
           "/api/live/examples",
           "POST /api/live/predict",
           "/api/trading/summary",
+          "/api/trading/thresholds?model=xgb",
         ],
       });
     }),
@@ -189,6 +190,29 @@ export function createApp(): express.Express {
   app.get("/api/mlops/status", asyncRoute(async (_req, res) => res.json(await readJson("mlops_status.json"))));
   app.get("/api/live/examples", asyncRoute(async (_req, res) => res.json(await readJson("live_prediction_examples.json"))));
   app.get("/api/trading/summary", asyncRoute(async (_req, res) => res.json(await readJson("trading_strategy_summary.json"))));
+  app.get(
+    "/api/trading/thresholds",
+    asyncRoute(async (req, res) => {
+      const payload = await readJson<RowsPayload & {
+        mode: string;
+        assumptions: Record<string, unknown>;
+        threshold_summary: Array<Record<string, unknown>>;
+        threshold_sweep: Array<Record<string, unknown>>;
+      }>("trading_strategy_summary.json");
+      const model = typeof req.query.model === "string" ? req.query.model : null;
+
+      res.json({
+        mode: payload.mode,
+        assumptions: payload.assumptions,
+        threshold_summary: model
+          ? payload.threshold_summary.filter((row) => row.id === model)
+          : payload.threshold_summary,
+        threshold_sweep: model
+          ? payload.threshold_sweep.filter((row) => row.id === model)
+          : payload.threshold_sweep,
+      });
+    }),
+  );
 
   app.post(
     "/api/live/predict",

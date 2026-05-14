@@ -162,6 +162,10 @@ def main() -> None:
         fail("trading strategy must preserve one-day execution lag")
     if abs(float(trading.get("assumptions", {}).get("transaction_cost", 0)) - 0.0015) > 1e-12:
         fail("trading strategy transaction cost must be 0.15%")
+    if len(trading.get("threshold_sweep", [])) < 30:
+        fail("trading threshold sweep must include enough candidate thresholds for the UI")
+    if len(trading.get("threshold_summary", [])) < 3:
+        fail("trading threshold summary must include XGB, RF, and Ridge")
 
     print(
         json.dumps(

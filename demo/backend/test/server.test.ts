@@ -74,5 +74,18 @@ describe("oil signal mine backend", () => {
       expect.arrayContaining(["xgb", "rf", "ridge", "buy_hold"]),
     );
     expect(response.body.equity_curve.length).toBe(840);
+    expect(response.body.threshold_summary.map((row: { id: string }) => row.id)).toEqual(
+      expect.arrayContaining(["xgb", "rf", "ridge"]),
+    );
+    expect(response.body.threshold_sweep.length).toBeGreaterThan(30);
+  });
+
+  it("serves model-specific trading threshold profit sweeps", async () => {
+    const response = await request(app).get("/api/trading/thresholds?model=xgb").expect(200);
+
+    expect(response.body.threshold_summary).toHaveLength(1);
+    expect(response.body.threshold_summary[0].id).toBe("xgb");
+    expect(response.body.threshold_sweep.length).toBeGreaterThan(10);
+    expect(response.body.threshold_sweep.every((row: { id: string }) => row.id === "xgb")).toBe(true);
   });
 });

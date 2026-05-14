@@ -24,6 +24,8 @@ test("renders the trading research page from generated strategy data", async ({ 
 
   await expect(page.getByRole("heading", { name: "Trading", exact: true })).toBeVisible();
   await expect(page.getByText("Equity Curve")).toBeVisible();
+  await expect(page.getByText("Threshold Profit Lab")).toBeVisible();
+  await expect(page.getByText("Profit on")).toBeVisible();
   await expect(page.getByText("Buy & Hold").first()).toBeVisible();
   await expect(page.getByText("Transaction cost")).toBeVisible();
 });
